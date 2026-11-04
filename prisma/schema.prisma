@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// DESARROLLO LOCAL: provider = "sqlite"
+// PRODUCCIÓN (Dokploy): cambiar a provider = "postgresql"
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Business {
+  id             String   @id @default(cuid())
+  slug           String   @unique
+  name           String
+  logoUrl        String?
+  primaryColor   String   @default("#1a1a2e")
+  secondaryColor String   @default("#ffffff")
+  accentColor    String   @default("#e94560")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  programs LoyaltyProgram[]
+  users    User[]
+
+  @@map("businesses")
+}
+
+model LoyaltyProgram {
+  id                String   @id @default(cuid())
+  businessId        String
+  name              String
+  description       String?
+  stampsRequired    Int      @default(10)
+  rewardDescription String
+  stampIconUrl      String?
+  rewardIconUrl     String?
+  logoUrl           String?
+  backgroundColor   String   @default("#1a1a2e")
+  foregroundColor   String   @default("#ffffff")
+  labelColor        String   @default("#cccccc")
+  isActive          Boolean  @default(true)
+  // Google Wallet: ID de la clase (loyaltyClass) creada en Google
+  googleClassId     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  business Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  passes   CustomerPass[]
+
+  @@map("loyalty_programs")
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  createdAt DateTime @default(now())
+
+  passes CustomerPass[]
+
+  @@unique([email])
+  @@map("customers")
+}
+
+model CustomerPass {
+  id                 String   @id @default(cuid())
+  serialNumber       String   @unique @default(cuid())
+  authToken          String   @default(cuid())
+  customerId         String
+  programId          String
+  currentStamps      Int      @default(0)
+  totalRewardsEarned Int      @default(0)
+  rewardReady        Boolean  @default(false)
+  // Apple Wallet: token del pase para APNS
+  applePassUpdatedAt DateTime @default(now())
+  // Google Wallet: ID del objeto loyaltyObject
+  googleObjectId     String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  customer Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  program  LoyaltyProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  stamps   Stamp[]
+  devices  AppleDevice[]
+
+  @@map("customer_passes")
+}
+
+// Registro de dispositivos Apple para push updates
+model AppleDevice {
+  id                     String   @id @default(cuid())
+  deviceLibraryIdentifier String
+  passSerialNumber       String
+  pushToken              String
+  createdAt              DateTime @default(now())
+
+  pass CustomerPass @relation(fields: [passSerialNumber], references: [serialNumber], onDelete: Cascade)
+
+  @@unique([deviceLibraryIdentifier, passSerialNumber])
+  @@map("apple_devices")
+}
+
+model Stamp {
+  id         String   @id @default(cuid())
+  passId     String
+  addedById  String
+  note       String?
+  createdAt  DateTime @default(now())
+
+  pass    CustomerPass @relation(fields: [passId], references: [id], onDelete: Cascade)
+  addedBy User         @relation(fields: [addedById], references: [id])
+
+  @@map("stamps")
+}
+
+model User {
+  id         String   @id @default(cuid())
+  businessId String
+  email      String   @unique
+  password   String
+  name       String
+  role       String   @default("STAFF") // "OWNER" | "ADMIN" | "STAFF"
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  stamps   Stamp[]
+
+  @@map("users")
+}
