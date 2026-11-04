@@ -1,0 +1,25 @@
+node_modules
+.next
+.git
+
+# Variables de entorno locales
+.env
+.env.local
+.env.*.local
+
+# Certificados sensibles (nunca deben entrar a la imagen)
+certs/*.json
+certs/*.p8
+
+# Bases de datos de desarrollo
+prisma/dev.db
+prisma/*.db
+prisma/dist
+
+# Logs
+*.log
+npm-debug.log*
+
+# Archivos de editor / SO
+.DS_Store
+Thumbs.db
