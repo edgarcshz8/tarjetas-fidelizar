@@ -5,7 +5,7 @@ generator client {
 // DESARROLLO LOCAL: provider = "sqlite"
 // PRODUCCIÓN (Dokploy): cambiar a provider = "postgresql"
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
