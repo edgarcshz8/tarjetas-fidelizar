@@ -9,8 +9,10 @@ const nextConfig = {
     ],
   },
   experimental: {
-    // Requerido para passkit-generator (usa Node.js built-ins como crypto y fs)
-    serverComponentsExternalPackages: ['passkit-generator'],
+    serverComponentsExternalPackages: [
+      'passkit-generator',
+      '@parse/node-apn',
+    ],
   },
 }
 

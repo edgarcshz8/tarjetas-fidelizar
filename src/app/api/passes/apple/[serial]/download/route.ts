@@ -21,7 +21,7 @@ export async function GET(
   try {
     const passBuffer = await generateApplePass(passRecord as any)
 
-    return new NextResponse(passBuffer, {
+    return new NextResponse(new Uint8Array(passBuffer), {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.apple.pkpass',

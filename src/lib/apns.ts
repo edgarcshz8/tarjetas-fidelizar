@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 
 // Push updates de Apple Wallet via APNS.
-// Para activar: instalar node-apn, agregar certs/apn_key.p8 y configurar env vars.
+// Para activar: agregar certs/apn_key.p8 y configurar env vars APPLE_APN_*.
 // Sin configurar, los pases se actualizan la próxima vez que el cliente los abre.
 
 export async function pushPassUpdate(serialNumber: string): Promise<void> {
@@ -10,13 +10,11 @@ export async function pushPassUpdate(serialNumber: string): Promise<void> {
   const teamId = process.env.APPLE_TEAM_IDENTIFIER
 
   if (!keyPath || !keyId || !teamId) {
-    // APNS no configurado — silencio
     return
   }
 
   try {
-    // Importación dinámica para que el módulo sea opcional
-    const apn = await import('node-apn')
+    const apn = await import('@parse/node-apn')
 
     const provider = new apn.default.Provider({
       token: {
@@ -44,6 +42,6 @@ export async function pushPassUpdate(serialNumber: string): Promise<void> {
 
     provider.shutdown()
   } catch {
-    // node-apn no instalado o error de config — ignorar
+    // @parse/node-apn no disponible o error de config — ignorar
   }
 }

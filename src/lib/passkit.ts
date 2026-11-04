@@ -129,6 +129,8 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
     iconBuffer = getDefaultIcon()
   }
 
+  // passkit-generator v3 acepta un objeto de Buffers en runtime, pero sus
+  // tipos TS solo declaran string. El cast a any es intencional.
   const pass = await PKPass.from(
     {
       model: {
@@ -137,7 +139,7 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
         'icon@2x.png': iconBuffer,
         'logo.png': iconBuffer,
         'logo@2x.png': iconBuffer,
-      },
+      } as any,
       certificates: {
         wwdr,
         signerCert,
