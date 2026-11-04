@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -5,18 +6,38 @@ import { generateQRDataURL } from '@/lib/qr'
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
-  if (!session) return null
+  if (!session) redirect('/admin/login')
 
   const appUrl = process.env.APP_URL || 'http://localhost:3000'
   const registrationUrl = `${appUrl}/${session.user.businessSlug}`
 
-  const [stats, program, qrDataUrl] = await Promise.all([
-    fetchStats(session.user.businessId),
-    prisma.loyaltyProgram.findFirst({
-      where: { businessId: session.user.businessId, isActive: true },
-    }),
-    generateQRDataURL(registrationUrl),
-  ])
+  let stats: Awaited<ReturnType<typeof fetchStats>>
+  let program: Awaited<ReturnType<typeof prisma.loyaltyProgram.findFirst>>
+  let qrDataUrl: string
+
+  try {
+    ;[stats, program, qrDataUrl] = await Promise.all([
+      fetchStats(session.user.businessId),
+      prisma.loyaltyProgram.findFirst({
+        where: { businessId: session.user.businessId, isActive: true },
+      }),
+      generateQRDataURL(registrationUrl),
+    ])
+  } catch {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[40vh] text-center">
+        <p className="text-5xl mb-4">⚠️</p>
+        <h2 className="text-xl font-semibold text-gray-800 mb-2">Error al cargar el dashboard</h2>
+        <p className="text-gray-500 mb-6">No se pudieron obtener los datos. Intenta recargar la página.</p>
+        <a
+          href="/admin/dashboard"
+          className="px-5 py-2 bg-slate-900 text-white rounded-lg text-sm hover:bg-slate-700 transition"
+        >
+          Recargar
+        </a>
+      </div>
+    )
+  }
 
   return (
     <div>

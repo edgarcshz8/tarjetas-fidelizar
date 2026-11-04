@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -5,7 +6,7 @@ import SettingsForm from '@/components/SettingsForm'
 
 export default async function SettingsPage() {
   const session = await getServerSession(authOptions)
-  if (!session) return null
+  if (!session) redirect('/admin/login')
 
   const [business, program] = await Promise.all([
     prisma.business.findUnique({ where: { id: session.user.businessId } }),
