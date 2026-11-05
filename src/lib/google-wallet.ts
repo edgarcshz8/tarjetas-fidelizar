@@ -158,6 +158,10 @@ function buildLoyaltyObjectPayload(params: {
 }) {
   const { objectId, classId, customer, currentStamps, stampsRequired, rewardDescription, rewardReady } = params
 
+  // Progreso visual con círculos Unicode:
+  // ●●●○○○○○○○  →  3 de 10 sellos ganados
+  const stampVisual = '●'.repeat(currentStamps) + '○'.repeat(Math.max(0, stampsRequired - currentStamps))
+
   return {
     id: objectId,
     classId,
@@ -165,9 +169,9 @@ function buildLoyaltyObjectPayload(params: {
     accountId: customer.id,
     accountName: customer.name,
     loyaltyPoints: {
-      label: rewardReady ? '🎉 PREMIO LISTO' : 'Sellos',
+      label: rewardReady ? '🎉 PREMIO LISTO' : 'SELLOS',
       balance: {
-        string: rewardReady ? '¡Reclama tu premio!' : `${currentStamps} / ${stampsRequired}`,
+        string: rewardReady ? '¡Reclama tu premio!' : stampVisual,
       },
     },
     textModulesData: [
@@ -178,7 +182,7 @@ function buildLoyaltyObjectPayload(params: {
       },
       {
         id: 'progress',
-        header: 'PROGRESO',
+        header: `PROGRESO: ${currentStamps} / ${stampsRequired}`,
         body: rewardReady
           ? '¡Completaste todos los sellos! Muestra esta tarjeta al comerciante.'
           : `Te faltan ${stampsRequired - currentStamps} sello(s) para tu premio.`,
