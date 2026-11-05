@@ -26,6 +26,7 @@ const updateSchema = z.object({
   stampsRequired: z.number().int().min(1).max(100),
   rewardDescription: z.string().min(1).max(200),
   stampIconUrl: z.string().optional(),
+  stampEmoji: z.string().optional(),
   rewardIconUrl: z.string().optional(),
   logoUrl: z.string().optional(),
   backgroundColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),

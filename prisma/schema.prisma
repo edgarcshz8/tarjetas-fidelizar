@@ -39,6 +39,7 @@ model LoyaltyProgram {
   backgroundColor   String   @default("#1a1a2e")
   foregroundColor   String   @default("#ffffff")
   labelColor        String   @default("#cccccc")
+  stampEmoji        String?  @default("⭐")
   isActive          Boolean  @default(true)
   // Google Wallet: ID de la clase (loyaltyClass) creada en Google
   googleClassId     String?

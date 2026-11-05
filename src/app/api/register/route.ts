@@ -110,6 +110,7 @@ export async function POST(req: NextRequest) {
       programName: program.name,
       stampsRequired: program.stampsRequired,
       rewardDescription: program.rewardDescription,
+      stampEmoji: program.stampEmoji ?? '⭐',
     })
   } catch (err) {
     if (err instanceof z.ZodError) {

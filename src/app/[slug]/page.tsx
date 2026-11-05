@@ -12,6 +12,7 @@ interface DownloadData {
   programName: string
   stampsRequired: number
   rewardDescription: string
+  stampEmoji: string
 }
 
 export default function RegisterPage() {
@@ -147,87 +148,42 @@ export default function RegisterPage() {
   )
 }
 
-// ─── Icono de plato SVG ───────────────────────────────────────────────────────
-// earned=true  → colores cálidos (naranja/ámbar)
-// earned=false → escala de grises con baja opacidad
-function PlateIcon({ earned }: { earned: boolean }) {
+// ─── Sello individual con emoji ───────────────────────────────────────────────
+function StampIcon({ earned, emoji }: { earned: boolean; emoji: string }) {
   return (
     <div
-      className="transition-all duration-500"
-      style={{ transform: earned ? 'scale(1.08)' : 'scale(1)' }}
+      style={{
+        width: 44,
+        height: 44,
+        borderRadius: '50%',
+        background: earned ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.06)',
+        border: earned ? '2px solid rgba(255,255,255,0.5)' : '2px solid rgba(255,255,255,0.15)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: 22,
+        opacity: earned ? 1 : 0.3,
+        transform: earned ? 'scale(1.08)' : 'scale(1)',
+        transition: 'all 0.4s ease',
+        boxShadow: earned ? '0 4px 14px rgba(0,0,0,0.35)' : 'none',
+        flexShrink: 0,
+      }}
     >
-      <svg viewBox="0 0 48 48" width="44" height="44" fill="none" xmlns="http://www.w3.org/2000/svg">
-        {/* Sombra del plato (solo cuando está ganado) */}
-        {earned && (
-          <ellipse cx="24" cy="45" rx="14" ry="3" fill="#F97316" opacity="0.25" />
-        )}
-        {/* Plato exterior */}
-        <circle
-          cx="24" cy="24" r="21"
-          fill={earned ? '#FFF7ED' : '#F3F4F6'}
-          stroke={earned ? '#EA580C' : '#D1D5DB'}
-          strokeWidth="2"
-        />
-        {/* Aro interior del plato */}
-        <circle
-          cx="24" cy="24" r="16"
-          fill="none"
-          stroke={earned ? '#FED7AA' : '#E5E7EB'}
-          strokeWidth="1.5"
-        />
-        {/* Base de la comida */}
-        <ellipse
-          cx="24" cy="27"
-          rx="10" ry="4"
-          fill={earned ? '#F97316' : '#9CA3AF'}
-        />
-        {/* Cuerpo de la comida (cúpula) */}
-        <path
-          d="M14 27 Q14 15 24 15 Q34 15 34 27 Z"
-          fill={earned ? '#FB923C' : '#D1D5DB'}
-        />
-        {/* Reflejo / brillo */}
-        <path
-          d="M18 22 Q20 17 24 16"
-          stroke={earned ? 'white' : '#F9FAFB'}
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          opacity={earned ? 0.5 : 0.8}
-        />
-        {/* Tapa o decoración superior */}
-        <ellipse
-          cx="24" cy="15"
-          rx="6" ry="2.5"
-          fill={earned ? '#EA580C' : '#9CA3AF'}
-        />
-        {/* Check si está ganado */}
-        {earned && (
-          <>
-            <circle cx="37" cy="11" r="7" fill="#22C55E" />
-            <path
-              d="M33.5 11 L36 13.5 L40.5 8.5"
-              stroke="white"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </>
-        )}
-      </svg>
+      {emoji}
     </div>
   )
 }
 
 // ─── Grilla de sellos ─────────────────────────────────────────────────────────
-function StampGrid({ current, total }: { current: number; total: number }) {
-  const cols = total <= 5 ? total : 5
+function StampGrid({ current, total, emoji }: { current: number; total: number; emoji: string }) {
+  const cols = total <= 5 ? total : Math.min(total, 5)
   return (
     <div
       className="grid gap-2 justify-items-center"
       style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
     >
       {Array.from({ length: total }).map((_, i) => (
-        <PlateIcon key={i} earned={i < current} />
+        <StampIcon key={i} earned={i < current} emoji={emoji} />
       ))}
     </div>
   )
@@ -263,9 +219,9 @@ function DownloadStep({ data }: { data: DownloadData }) {
             <p className="text-white font-bold text-lg leading-tight">{data.programName}</p>
           </div>
 
-          {/* Grilla de platos */}
+          {/* Grilla de sellos */}
           <div className="mb-5">
-            <StampGrid current={0} total={data.stampsRequired} />
+            <StampGrid current={0} total={data.stampsRequired} emoji={data.stampEmoji} />
           </div>
 
           {/* Footer de la tarjeta */}
@@ -286,7 +242,7 @@ function DownloadStep({ data }: { data: DownloadData }) {
 
         {/* Instrucción */}
         <p className="text-center text-slate-400 text-xs px-4">
-          Cada plato se pondrá a color con cada sello que acumules. ¡Completa los {data.stampsRequired} para ganar tu premio!
+          Cada {data.stampEmoji} se iluminará con cada sello que acumules. ¡Completa los {data.stampsRequired} para ganar tu premio!
         </p>
 
         {/* Botones de descarga */}

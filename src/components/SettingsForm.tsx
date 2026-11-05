@@ -15,6 +15,7 @@ interface ProgramState {
   stampsRequired: number
   rewardDescription: string
   stampIconUrl: string
+  stampEmoji: string
   backgroundColor: string
   foregroundColor: string
   labelColor: string
@@ -22,6 +23,13 @@ interface ProgramState {
 
 type FormSection = 'programa' | 'diseno' | 'negocio'
 type PreviewPlatform = 'apple' | 'google'
+
+const STAMP_ICONS = [
+  '☕', '🍕', '🍔', '🌮', '🍜', '🍣',
+  '🧋', '🍺', '🍰', '🥗', '🌸', '🎪',
+  '⭐', '🌟', '🏆', '💎', '🎯', '❤️',
+  '🔥', '🎁', '👑', '✨', '🦋', '🎵',
+]
 
 const COLOR_THEMES = [
   { name: 'Noche',   bg: '#1a1a2e', fg: '#ffffff', label: '#aaaacc' },
@@ -42,6 +50,7 @@ export default function SettingsForm({ business, program }: Props) {
     stampsRequired:   program?.stampsRequired   ?? 10,
     rewardDescription:program?.rewardDescription ?? '',
     stampIconUrl:     program?.stampIconUrl      ?? '',
+    stampEmoji:       program?.stampEmoji        ?? '⭐',
     backgroundColor:  program?.backgroundColor  ?? '#1a1a2e',
     foregroundColor:  program?.foregroundColor  ?? '#ffffff',
     labelColor:       program?.labelColor       ?? '#aaaacc',
@@ -243,6 +252,32 @@ export default function SettingsForm({ business, program }: Props) {
                 </div>
               </div>
 
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-1">
+                  Ícono de cada sello
+                </p>
+                <p className="text-xs text-gray-400 mb-3">
+                  Aparece en cada círculo de la tarjeta web y en la vista previa
+                </p>
+                <div className="grid grid-cols-6 gap-1.5">
+                  {STAMP_ICONS.map(icon => (
+                    <button
+                      key={icon}
+                      type="button"
+                      onClick={() => setProgramData(d => ({ ...d, stampEmoji: icon }))}
+                      className={`h-10 rounded-xl text-xl flex items-center justify-center transition border-2 ${
+                        p.stampEmoji === icon
+                          ? 'border-slate-900 bg-slate-50 scale-110 shadow-sm'
+                          : 'border-transparent bg-gray-50 hover:bg-gray-100 hover:border-gray-300'
+                      }`}
+                      title={icon}
+                    >
+                      {icon}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <Field
                 label="URL del logo / ícono"
                 hint="Imagen cuadrada PNG que aparece en la esquina superior de Apple Wallet"
@@ -332,6 +367,7 @@ export default function SettingsForm({ business, program }: Props) {
                   fgColor={p.foregroundColor}
                   labelColor={p.labelColor}
                   logoUrl={p.stampIconUrl}
+                  stampEmoji={p.stampEmoji}
                   currentStamps={previewStamps}
                 />
               ) : (
@@ -343,6 +379,7 @@ export default function SettingsForm({ business, program }: Props) {
                   bgColor={p.backgroundColor}
                   fgColor={p.foregroundColor}
                   labelColor={p.labelColor}
+                  stampEmoji={p.stampEmoji}
                   currentStamps={previewStamps}
                 />
               )}
@@ -453,7 +490,7 @@ function ColorRow({
 
 function AppleWalletCard({
   businessName, stampsRequired, rewardDescription,
-  bgColor, fgColor, labelColor, logoUrl, currentStamps,
+  bgColor, fgColor, labelColor, logoUrl, stampEmoji, currentStamps,
 }: {
   businessName: string
   stampsRequired: number
@@ -462,6 +499,7 @@ function AppleWalletCard({
   fgColor: string
   labelColor: string
   logoUrl: string
+  stampEmoji: string
   currentStamps: number
 }) {
   const rewardReady = currentStamps >= stampsRequired
@@ -509,6 +547,7 @@ function AppleWalletCard({
           current={currentStamps}
           total={stampsRequired}
           fgColor={fgColor}
+          stampEmoji={stampEmoji}
           rewardReady={rewardReady}
         />
       </div>
@@ -577,11 +616,12 @@ function AppleWalletCard({
 }
 
 function WalletStampStrip({
-  current, total, fgColor, rewardReady,
+  current, total, fgColor, stampEmoji, rewardReady,
 }: {
   current: number
   total: number
   fgColor: string
+  stampEmoji: string
   rewardReady: boolean
 }) {
   const n      = Math.min(total, 10)
@@ -589,6 +629,7 @@ function WalletStampStrip({
   const gap    = r * 0.6
   const width  = n * 2 * r + (n - 1) * gap + 4
   const height = 2 * r + 4
+  const emojiSize = r * 1.15
 
   return (
     <svg
@@ -597,37 +638,33 @@ function WalletStampStrip({
       style={{ display: 'block', overflow: 'visible' }}
     >
       {Array.from({ length: n }).map((_, i) => {
-        const cx = 2 + i * (2 * r + gap) + r
-        const cy = 2 + r
+        const cx     = 2 + i * (2 * r + gap) + r
+        const cy     = 2 + r
         const earned = i < current
 
-        if (rewardReady) {
-          return (
-            <g key={i}>
-              <circle cx={cx} cy={cy} r={r} fill={fgColor} />
-              <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle" fontSize={r * 1.1}>⭐</text>
-            </g>
-          )
-        }
-
-        return earned ? (
+        return (
           <g key={i}>
-            <circle cx={cx} cy={cy} r={r} fill={fgColor} />
-            <circle
-              cx={cx - r * 0.28} cy={cy - r * 0.28}
-              r={r * 0.22}
-              fill="white" fillOpacity="0.45"
-            />
+            {earned ? (
+              <circle cx={cx} cy={cy} r={r} fill={fgColor} />
+            ) : (
+              <circle
+                cx={cx} cy={cy} r={r - 1.5}
+                fill="none"
+                stroke={fgColor}
+                strokeWidth="1.5"
+                strokeOpacity="0.35"
+              />
+            )}
+            <text
+              x={cx} y={cy + 0.5}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize={emojiSize}
+              opacity={earned ? 1 : 0.3}
+            >
+              {rewardReady ? '🏆' : stampEmoji}
+            </text>
           </g>
-        ) : (
-          <circle
-            key={i}
-            cx={cx} cy={cy} r={r - 1.5}
-            fill="none"
-            stroke={fgColor}
-            strokeWidth="1.5"
-            strokeOpacity="0.4"
-          />
         )
       })}
       {total > 10 && (
@@ -698,7 +735,7 @@ function QRCodePlaceholder({ size = 64 }: { size?: number }) {
 
 function GoogleWalletCard({
   businessName, programName, stampsRequired, rewardDescription,
-  bgColor, fgColor, labelColor, currentStamps,
+  bgColor, fgColor, labelColor, stampEmoji, currentStamps,
 }: {
   businessName: string
   programName: string
@@ -707,12 +744,12 @@ function GoogleWalletCard({
   bgColor: string
   fgColor: string
   labelColor: string
+  stampEmoji: string
   currentStamps: number
 }) {
-  const rewardReady   = currentStamps >= stampsRequired
-  const stampVisual   = '●'.repeat(Math.min(currentStamps, 10))
-                      + '○'.repeat(Math.max(0, Math.min(stampsRequired, 10) - currentStamps))
-  const extraStamps   = stampsRequired > 10 ? ` (+${stampsRequired - 10})` : ''
+  const rewardReady = currentStamps >= stampsRequired
+  const n           = Math.min(stampsRequired, 10)
+  const extraStamps = stampsRequired > 10 ? ` +${stampsRequired - 10}` : ''
 
   return (
     <div
@@ -750,18 +787,42 @@ function GoogleWalletCard({
         </div>
       </div>
 
-      {/* Stamp bar */}
+      {/* Stamp grid */}
       <div style={{ background: 'rgba(0,0,0,0.2)', padding: '10px 18px 12px' }}>
-        <div style={{ color: labelColor, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>
+        <div style={{ color: labelColor, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>
           {rewardReady ? '🎉 PREMIO LISTO' : 'SELLOS'}
         </div>
-        <div style={{ color: fgColor, fontSize: 18, letterSpacing: 2, lineHeight: 1 }}>
-          {rewardReady ? '¡Reclama tu premio!' : stampVisual + extraStamps}
-        </div>
+        {rewardReady ? (
+          <div style={{ color: fgColor, fontSize: 14, fontWeight: 600 }}>¡Reclama tu premio!</div>
+        ) : (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {Array.from({ length: n }).map((_, i) => (
+              <div
+                key={i}
+                style={{
+                  width: 24, height: 24,
+                  borderRadius: '50%',
+                  background: i < currentStamps ? fgColor : 'transparent',
+                  border: i < currentStamps ? 'none' : `1.5px solid ${fgColor}`,
+                  opacity: i < currentStamps ? 1 : 0.35,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 13,
+                }}
+              >
+                {stampEmoji}
+              </div>
+            ))}
+            {extraStamps && (
+              <div style={{ color: labelColor, fontSize: 10, alignSelf: 'center', marginLeft: 2 }}>
+                {extraStamps}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Progress + reward */}
-      <div style={{ padding: '12px 18px 18px' }}>
+      <div style={{ padding: '12px 18px 14px' }}>
         <div style={{ color: labelColor, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase' }}>
           PROGRESO
         </div>
@@ -779,6 +840,23 @@ function GoogleWalletCard({
             {rewardDescription || 'Tu premio aquí'}
           </div>
         </div>
+      </div>
+
+      {/* QR code */}
+      <div style={{
+        background: 'white',
+        margin: '0 14px 16px',
+        borderRadius: 10,
+        padding: '10px 10px 6px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 5,
+      }}>
+        <QRCodePlaceholder size={72} />
+        <span style={{ fontSize: 8, color: '#888', letterSpacing: 0.8, textTransform: 'uppercase' }}>
+          Escanear en tienda
+        </span>
       </div>
     </div>
   )
