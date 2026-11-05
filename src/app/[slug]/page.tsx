@@ -22,7 +22,6 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [downloadData, setDownloadData] = useState<DownloadData | null>(null)
-
   const [form, setForm] = useState({ name: '', email: '', phone: '' })
 
   async function handleSubmit(e: React.FormEvent) {
@@ -76,10 +75,7 @@ export default function RegisterPage() {
           {step === 'error' && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
               {errorMsg}
-              <button
-                onClick={() => setStep('form')}
-                className="ml-2 underline font-medium"
-              >
+              <button onClick={() => setStep('form')} className="ml-2 underline font-medium">
                 Volver
               </button>
             </div>
@@ -87,9 +83,7 @@ export default function RegisterPage() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nombre completo
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nombre completo</label>
               <input
                 type="text"
                 required
@@ -101,9 +95,7 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Correo electrónico
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Correo electrónico</label>
               <input
                 type="email"
                 required
@@ -155,41 +147,153 @@ export default function RegisterPage() {
   )
 }
 
+// ─── Icono de plato SVG ───────────────────────────────────────────────────────
+// earned=true  → colores cálidos (naranja/ámbar)
+// earned=false → escala de grises con baja opacidad
+function PlateIcon({ earned }: { earned: boolean }) {
+  return (
+    <div
+      className="transition-all duration-500"
+      style={{ transform: earned ? 'scale(1.08)' : 'scale(1)' }}
+    >
+      <svg viewBox="0 0 48 48" width="44" height="44" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {/* Sombra del plato (solo cuando está ganado) */}
+        {earned && (
+          <ellipse cx="24" cy="45" rx="14" ry="3" fill="#F97316" opacity="0.25" />
+        )}
+        {/* Plato exterior */}
+        <circle
+          cx="24" cy="24" r="21"
+          fill={earned ? '#FFF7ED' : '#F3F4F6'}
+          stroke={earned ? '#EA580C' : '#D1D5DB'}
+          strokeWidth="2"
+        />
+        {/* Aro interior del plato */}
+        <circle
+          cx="24" cy="24" r="16"
+          fill="none"
+          stroke={earned ? '#FED7AA' : '#E5E7EB'}
+          strokeWidth="1.5"
+        />
+        {/* Base de la comida */}
+        <ellipse
+          cx="24" cy="27"
+          rx="10" ry="4"
+          fill={earned ? '#F97316' : '#9CA3AF'}
+        />
+        {/* Cuerpo de la comida (cúpula) */}
+        <path
+          d="M14 27 Q14 15 24 15 Q34 15 34 27 Z"
+          fill={earned ? '#FB923C' : '#D1D5DB'}
+        />
+        {/* Reflejo / brillo */}
+        <path
+          d="M18 22 Q20 17 24 16"
+          stroke={earned ? 'white' : '#F9FAFB'}
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          opacity={earned ? 0.5 : 0.8}
+        />
+        {/* Tapa o decoración superior */}
+        <ellipse
+          cx="24" cy="15"
+          rx="6" ry="2.5"
+          fill={earned ? '#EA580C' : '#9CA3AF'}
+        />
+        {/* Check si está ganado */}
+        {earned && (
+          <>
+            <circle cx="37" cy="11" r="7" fill="#22C55E" />
+            <path
+              d="M33.5 11 L36 13.5 L40.5 8.5"
+              stroke="white"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        )}
+      </svg>
+    </div>
+  )
+}
+
+// ─── Grilla de sellos ─────────────────────────────────────────────────────────
+function StampGrid({ current, total }: { current: number; total: number }) {
+  const cols = total <= 5 ? total : 5
+  return (
+    <div
+      className="grid gap-2 justify-items-center"
+      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+    >
+      {Array.from({ length: total }).map((_, i) => (
+        <PlateIcon key={i} earned={i < current} />
+      ))}
+    </div>
+  )
+}
+
+// ─── Pantalla de descarga ─────────────────────────────────────────────────────
 function DownloadStep({ data }: { data: DownloadData }) {
+  const firstName = data.customerName.split(' ')[0]
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-10 h-10 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="w-full max-w-md space-y-5">
+
+        {/* Header */}
+        <div className="text-center">
+          <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
+            <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">¡Listo, {data.customerName.split(' ')[0]}!</h1>
-          <p className="text-slate-400">Tu tarjeta está lista para descargar</p>
+          <h1 className="text-2xl font-bold text-white mb-1">¡Listo, {firstName}!</h1>
+          <p className="text-slate-400 text-sm">Tu tarjeta de fidelización está lista</p>
         </div>
 
-        {/* Vista previa de la tarjeta */}
-        <div className="bg-gradient-to-br from-slate-700 to-slate-900 rounded-2xl p-6 mb-6 border border-white/10">
-          <div className="text-white/60 text-xs font-medium mb-1">PROGRAMA</div>
-          <div className="text-white font-bold text-lg mb-4">{data.programName}</div>
-          <div className="flex justify-between items-end">
+        {/* Tarjeta de fidelización */}
+        <div className="bg-gradient-to-br from-slate-700 to-slate-900 rounded-3xl p-6 border border-white/10 shadow-2xl">
+
+          {/* Nombre del programa */}
+          <div className="mb-5">
+            <p className="text-orange-400 text-xs font-semibold tracking-widest uppercase mb-0.5">
+              Programa de fidelización
+            </p>
+            <p className="text-white font-bold text-lg leading-tight">{data.programName}</p>
+          </div>
+
+          {/* Grilla de platos */}
+          <div className="mb-5">
+            <StampGrid current={0} total={data.stampsRequired} />
+          </div>
+
+          {/* Footer de la tarjeta */}
+          <div className="flex items-end justify-between pt-4 border-t border-white/10">
             <div>
-              <div className="text-white/60 text-xs font-medium mb-1">SELLOS NECESARIOS</div>
-              <div className="text-white text-2xl font-bold">0 / {data.stampsRequired}</div>
+              <p className="text-white/50 text-xs font-medium mb-0.5">SELLOS</p>
+              <p className="text-white font-bold text-xl">
+                0
+                <span className="text-white/40 font-normal text-sm"> / {data.stampsRequired}</span>
+              </p>
             </div>
-            <div className="text-right">
-              <div className="text-white/60 text-xs font-medium mb-1">TU PREMIO</div>
-              <div className="text-green-400 text-sm font-semibold max-w-32">{data.rewardDescription}</div>
+            <div className="text-right max-w-[55%]">
+              <p className="text-white/50 text-xs font-medium mb-0.5">TU PREMIO</p>
+              <p className="text-orange-400 text-sm font-semibold leading-tight">{data.rewardDescription}</p>
             </div>
           </div>
         </div>
+
+        {/* Instrucción */}
+        <p className="text-center text-slate-400 text-xs px-4">
+          Cada plato se pondrá a color con cada sello que acumules. ¡Completa los {data.stampsRequired} para ganar tu premio!
+        </p>
 
         {/* Botones de descarga */}
         <div className="space-y-3">
           <a
             href={data.applePassUrl}
-            className="flex items-center justify-center gap-3 w-full py-4 bg-black text-white font-semibold rounded-xl hover:bg-gray-900 transition"
+            className="flex items-center justify-center gap-3 w-full py-4 bg-black text-white font-semibold rounded-2xl hover:bg-gray-900 transition shadow-lg"
           >
             <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
               <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
@@ -201,7 +305,7 @@ function DownloadStep({ data }: { data: DownloadData }) {
             href={data.googleWalletUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-3 w-full py-4 bg-white text-gray-900 font-semibold rounded-xl border border-gray-200 hover:bg-gray-50 transition"
+            className="flex items-center justify-center gap-3 w-full py-4 bg-white text-gray-900 font-semibold rounded-2xl border border-gray-200 hover:bg-gray-50 transition shadow-lg"
           >
             <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -213,9 +317,6 @@ function DownloadStep({ data }: { data: DownloadData }) {
           </a>
         </div>
 
-        <p className="mt-6 text-center text-slate-500 text-sm">
-          Presenta tu tarjeta en cada compra para acumular sellos
-        </p>
       </div>
     </div>
   )
