@@ -380,6 +380,7 @@ export default function SettingsForm({ business, program }: Props) {
                   fgColor={p.foregroundColor}
                   labelColor={p.labelColor}
                   stampEmoji={p.stampEmoji}
+                  logoUrl={p.stampIconUrl}
                   currentStamps={previewStamps}
                 />
               )}
@@ -735,7 +736,7 @@ function QRCodePlaceholder({ size = 64 }: { size?: number }) {
 
 function GoogleWalletCard({
   businessName, programName, stampsRequired, rewardDescription,
-  bgColor, fgColor, labelColor, stampEmoji, currentStamps,
+  bgColor, fgColor, labelColor, stampEmoji, logoUrl, currentStamps,
 }: {
   businessName: string
   programName: string
@@ -745,6 +746,7 @@ function GoogleWalletCard({
   fgColor: string
   labelColor: string
   stampEmoji: string
+  logoUrl: string
   currentStamps: number
 }) {
   const rewardReady = currentStamps >= stampsRequired
@@ -777,14 +779,23 @@ function GoogleWalletCard({
             {programName || 'Tarjeta de sellos'}
           </div>
         </div>
-        <div style={{
-          width: 40, height: 40, borderRadius: '50%',
-          background: 'rgba(255,255,255,0.15)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 20, flexShrink: 0,
-        }}>
-          🏪
-        </div>
+        {logoUrl && logoUrl.startsWith('http') ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={logoUrl}
+            alt=""
+            style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+          />
+        ) : (
+          <div style={{
+            width: 40, height: 40, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.15)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 20, flexShrink: 0,
+          }}>
+            🏪
+          </div>
+        )}
       </div>
 
       {/* Stamp grid */}
