@@ -2,10 +2,12 @@
 
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const registered = searchParams.get('registered') === '1'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -47,6 +49,14 @@ export default function LoginPage() {
         </div>
 
         <div className="bg-white rounded-2xl shadow-lg p-8">
+          {registered && (
+            <div className="mb-5 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm flex items-center gap-2">
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              ¡Cuenta creada! Ya puedes iniciar sesión.
+            </div>
+          )}
           {error && (
             <div className="mb-5 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
               {error}
@@ -84,6 +94,13 @@ export default function LoginPage() {
               {loading ? 'Ingresando...' : 'Ingresar'}
             </button>
           </form>
+
+          <p className="mt-5 text-center text-sm text-gray-500">
+            ¿No tienes cuenta?{' '}
+            <a href="/register-business" className="font-semibold text-slate-700 hover:underline">
+              Registra tu negocio
+            </a>
+          </p>
         </div>
       </div>
     </div>
