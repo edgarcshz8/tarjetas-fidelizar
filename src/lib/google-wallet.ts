@@ -1,6 +1,7 @@
 import { GoogleAuth } from 'google-auth-library'
 import jwt from 'jsonwebtoken'
 import { LoyaltyProgram, CustomerPass, Customer } from '@prisma/client'
+import { getServiceAccountCredentials } from './google-credentials'
 
 export type GooglePassData = CustomerPass & {
   customer: Customer
@@ -10,24 +11,11 @@ export type GooglePassData = CustomerPass & {
 const GOOGLE_WALLET_API = 'https://walletobjects.googleapis.com/walletobjects/v1'
 
 function getGoogleAuth(): GoogleAuth {
-  // Producción / Dokploy: variables de entorno individuales (preferido)
-  if (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) {
-    return new GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-        private_key: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY.replace(/\\n/g, '\n'),
-      },
-      scopes: ['https://www.googleapis.com/auth/wallet_object.issuer'],
-    })
-  }
-  // Desarrollo local: archivo JSON en certs/
-  if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE) {
-    return new GoogleAuth({
-      keyFile: process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE,
-      scopes: ['https://www.googleapis.com/auth/wallet_object.issuer'],
-    })
-  }
-  throw new Error('Credenciales de Google Wallet no configuradas')
+  const { email, privateKey } = getServiceAccountCredentials()
+  return new GoogleAuth({
+    credentials: { client_email: email, private_key: privateKey },
+    scopes: ['https://www.googleapis.com/auth/wallet_object.issuer'],
+  })
 }
 
 function getIssuerId(): string {
@@ -206,27 +194,8 @@ function buildLoyaltyObjectPayload(params: {
 
 // ─── JWT PARA "SAVE TO GOOGLE WALLET" ────────────────────────────────────────
 
-function loadServiceAccountCredentials(): { email: string; privateKey: string } {
-  // Producción / Dokploy: variables de entorno individuales (preferido)
-  if (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) {
-    return {
-      email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      privateKey: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY.replace(/\\n/g, '\n'),
-    }
-  }
-  // Desarrollo local: archivo JSON en certs/
-  if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE) {
-    const fs = require('fs')
-    const path = require('path')
-    const filePath = path.resolve(process.cwd(), process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE)
-    const json = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
-    return { email: json.client_email, privateKey: json.private_key }
-  }
-  throw new Error('Credenciales de Google Wallet no configuradas')
-}
-
 export function generateSaveToWalletJwt(objectId: string): string {
-  const { email: serviceAccountEmail, privateKey } = loadServiceAccountCredentials()
+  const { email: serviceAccountEmail, privateKey } = getServiceAccountCredentials()
 
   const claims = {
     iss: serviceAccountEmail as string,
