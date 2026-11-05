@@ -8,44 +8,83 @@ interface Props {
   program: LoyaltyProgram | null
 }
 
+interface ProgramState {
+  id: string
+  name: string
+  description: string
+  stampsRequired: number
+  rewardDescription: string
+  stampIconUrl: string
+  backgroundColor: string
+  foregroundColor: string
+  labelColor: string
+}
+
+type FormSection = 'programa' | 'diseno' | 'negocio'
+type PreviewPlatform = 'apple' | 'google'
+
+const COLOR_THEMES = [
+  { name: 'Noche',   bg: '#1a1a2e', fg: '#ffffff', label: '#aaaacc' },
+  { name: 'Café',    bg: '#3b1f0d', fg: '#ffd7a0', label: '#c4906a' },
+  { name: 'Bosque',  bg: '#0d3d2e', fg: '#a8f0c6', label: '#5dba90' },
+  { name: 'Navy',    bg: '#0f2444', fg: '#e0f0ff', label: '#7ab0d8' },
+  { name: 'Vino',    bg: '#4a0a26', fg: '#ffd6e7', label: '#d47090' },
+  { name: 'Pizarra', bg: '#2d3436', fg: '#dfe6e9', label: '#8fa0a8' },
+  { name: 'Oliva',   bg: '#1e3a1e', fg: '#d4edda', label: '#7aaa7a' },
+  { name: 'Rubí',    bg: '#8b0000', fg: '#ffe4e4', label: '#d08080' },
+]
+
 export default function SettingsForm({ business, program }: Props) {
-  const [programData, setProgramData] = useState({
-    id: program?.id || '',
-    name: program?.name || '',
-    description: program?.description || '',
-    stampsRequired: program?.stampsRequired || 10,
-    rewardDescription: program?.rewardDescription || '',
-    stampIconUrl: program?.stampIconUrl || '',
-    rewardIconUrl: program?.rewardIconUrl || '',
-    backgroundColor: program?.backgroundColor || '#1a1a2e',
-    foregroundColor: program?.foregroundColor || '#ffffff',
-    labelColor: program?.labelColor || '#cccccc',
+  const [programData, setProgramData] = useState<ProgramState>({
+    id:               program?.id               ?? '',
+    name:             program?.name             ?? '',
+    description:      program?.description      ?? '',
+    stampsRequired:   program?.stampsRequired   ?? 10,
+    rewardDescription:program?.rewardDescription ?? '',
+    stampIconUrl:     program?.stampIconUrl      ?? '',
+    backgroundColor:  program?.backgroundColor  ?? '#1a1a2e',
+    foregroundColor:  program?.foregroundColor  ?? '#ffffff',
+    labelColor:       program?.labelColor       ?? '#aaaacc',
   })
 
   const [businessData, setBusinessData] = useState({
-    name: business?.name || '',
-    primaryColor: business?.primaryColor || '#1a1a2e',
+    name: business?.name ?? '',
+    slug: business?.slug ?? '',
   })
 
+  const [section,       setSection]       = useState<FormSection>('programa')
+  const [platform,      setPlatform]      = useState<PreviewPlatform>('apple')
+  const [previewStamps, setPreviewStamps] = useState(
+    Math.max(1, Math.floor((program?.stampsRequired ?? 10) / 3))
+  )
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [error, setError] = useState('')
+  const [saved,  setSaved]  = useState(false)
+  const [error,  setError]  = useState('')
 
-  async function saveProgram(e: React.FormEvent) {
+  const p = programData
+
+  async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
     setError('')
     setSaved(false)
 
     try {
-      const res = await fetch('/api/admin/programs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(programData),
-      })
+      const [progRes] = await Promise.all([
+        fetch('/api/admin/programs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(programData),
+        }),
+        fetch('/api/admin/businesses', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: businessData.name }),
+        }),
+      ])
 
-      if (!res.ok) {
-        const data = await res.json()
+      if (!progRes.ok) {
+        const data = await progRes.json()
         setError(data.error || 'Error al guardar')
         return
       }
@@ -59,229 +98,688 @@ export default function SettingsForm({ business, program }: Props) {
     }
   }
 
-  async function saveBusiness() {
-    await fetch('/api/admin/businesses', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(businessData),
-    })
-  }
-
   return (
-    <div className="space-y-6">
-      {/* Programa de fidelización */}
-      <form onSubmit={saveProgram}>
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-5">Programa de Fidelización</h2>
+    <form onSubmit={handleSave}>
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 items-start">
+
+        {/* ─── Left: form ─────────────────────────── */}
+        <div className="xl:col-span-3 space-y-4">
+
+          {/* Section tabs */}
+          <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+            {(['programa', 'diseno', 'negocio'] as FormSection[]).map(s => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setSection(s)}
+                className={`flex-1 py-2 text-sm font-medium rounded-lg transition ${
+                  section === s
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {s === 'programa' ? 'Programa' : s === 'diseno' ? 'Diseño' : 'Negocio'}
+              </button>
+            ))}
+          </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
               {error}
             </div>
           )}
 
-          <div className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nombre del programa
-              </label>
-              <input
-                type="text"
-                required
-                value={programData.name}
-                onChange={e => setProgramData(d => ({ ...d, name: e.target.value }))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
-                placeholder="Ej: Tarjeta Café & Club"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Descripción (opcional)
-              </label>
-              <input
-                type="text"
-                value={programData.description}
-                onChange={e => setProgramData(d => ({ ...d, description: e.target.value }))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
-                placeholder="Ej: ¡Colecciona sellos y gana un café gratis!"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Cantidad de sellos para el premio
-              </label>
-              <div className="flex items-center gap-4">
+          {/* ── Programa ── */}
+          {section === 'programa' && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
+              <Field label="Nombre del programa">
                 <input
-                  type="range"
-                  min="1"
-                  max="50"
-                  value={programData.stampsRequired}
-                  onChange={e => setProgramData(d => ({ ...d, stampsRequired: parseInt(e.target.value) }))}
-                  className="flex-1"
+                  type="text"
+                  required
+                  value={p.name}
+                  onChange={e => setProgramData(d => ({ ...d, name: e.target.value }))}
+                  className="input"
+                  placeholder="Ej: Tarjeta Café & Club"
                 />
-                <span className="text-2xl font-bold text-slate-900 w-10 text-right">
-                  {programData.stampsRequired}
-                </span>
-              </div>
-            </div>
+              </Field>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Descripción del premio
-              </label>
-              <input
-                type="text"
-                required
-                value={programData.rewardDescription}
-                onChange={e => setProgramData(d => ({ ...d, rewardDescription: e.target.value }))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
-                placeholder="Ej: 1 café de tu elección completamente gratis"
-              />
-            </div>
+              <Field label="Descripción" hint="Se muestra en el reverso de la tarjeta">
+                <input
+                  type="text"
+                  value={p.description}
+                  onChange={e => setProgramData(d => ({ ...d, description: e.target.value }))}
+                  className="input"
+                  placeholder="Ej: ¡Colecciona sellos y gana un café gratis!"
+                />
+              </Field>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                URL del ícono de sello (opcional)
-              </label>
-              <input
-                type="text"
-                value={programData.stampIconUrl}
-                onChange={e => setProgramData(d => ({ ...d, stampIconUrl: e.target.value }))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
-                placeholder="/uploads/sello-cafe.png o URL externa"
-              />
-              <p className="mt-1 text-xs text-gray-400">
-                Ícono PNG 29x29px que aparece en Apple Wallet
-              </p>
-            </div>
+              <Field label={`Sellos para el premio — ${p.stampsRequired}`}>
+                <div className="flex items-center gap-4">
+                  <input
+                    type="range"
+                    min="3" max="20" step="1"
+                    value={p.stampsRequired}
+                    onChange={e => {
+                      const n = parseInt(e.target.value)
+                      setProgramData(d => ({ ...d, stampsRequired: n }))
+                      setPreviewStamps(prev => Math.min(prev, n))
+                    }}
+                    className="flex-1 accent-slate-900"
+                  />
+                  <span className="text-3xl font-bold text-slate-900 w-12 text-right tabular-nums select-none">
+                    {p.stampsRequired}
+                  </span>
+                </div>
+              </Field>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                URL del ícono de premio (opcional)
-              </label>
-              <input
-                type="text"
-                value={programData.rewardIconUrl}
-                onChange={e => setProgramData(d => ({ ...d, rewardIconUrl: e.target.value }))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
-                placeholder="/uploads/premio.png o URL externa"
-              />
+              <Field label="Premio al completar la tarjeta">
+                <input
+                  type="text"
+                  required
+                  value={p.rewardDescription}
+                  onChange={e => setProgramData(d => ({ ...d, rewardDescription: e.target.value }))}
+                  className="input"
+                  placeholder="Ej: 1 café de tu elección completamente gratis"
+                />
+              </Field>
             </div>
+          )}
 
-            {/* Colores */}
-            <div>
-              <p className="text-sm font-medium text-gray-700 mb-3">Colores de la tarjeta</p>
-              <div className="grid grid-cols-3 gap-4">
-                <ColorPicker
-                  label="Fondo"
-                  value={programData.backgroundColor}
+          {/* ── Diseño ── */}
+          {section === 'diseno' && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-6">
+
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-gray-700">Colores de la tarjeta</p>
+                <ColorRow
+                  label="Color de fondo"
+                  description="Color principal que rellena la tarjeta"
+                  value={p.backgroundColor}
                   onChange={v => setProgramData(d => ({ ...d, backgroundColor: v }))}
                 />
-                <ColorPicker
-                  label="Texto"
-                  value={programData.foregroundColor}
+                <ColorRow
+                  label="Color de texto"
+                  description="Nombre del negocio, valores y números"
+                  value={p.foregroundColor}
                   onChange={v => setProgramData(d => ({ ...d, foregroundColor: v }))}
                 />
-                <ColorPicker
-                  label="Etiquetas"
-                  value={programData.labelColor}
+                <ColorRow
+                  label="Color de etiquetas"
+                  description="Texto pequeño: SELLOS, PREMIO, COMPLETAR…"
+                  value={p.labelColor}
                   onChange={v => setProgramData(d => ({ ...d, labelColor: v }))}
                 />
               </div>
+
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-3">Temas rápidos</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {COLOR_THEMES.map(t => (
+                    <button
+                      key={t.name}
+                      type="button"
+                      title={t.name}
+                      onClick={() => setProgramData(d => ({
+                        ...d,
+                        backgroundColor: t.bg,
+                        foregroundColor: t.fg,
+                        labelColor: t.label,
+                      }))}
+                      className="relative rounded-xl overflow-hidden h-16 border-2 border-transparent hover:border-slate-400 transition focus:outline-none focus:border-slate-500"
+                      style={{ backgroundColor: t.bg }}
+                    >
+                      <div className="absolute inset-x-3 top-3 space-y-1">
+                        <div className="h-1.5 rounded-full" style={{ background: t.fg, opacity: 0.9 }} />
+                        <div className="h-1 w-3/4 rounded-full" style={{ background: t.label, opacity: 0.75 }} />
+                      </div>
+                      <span
+                        className="absolute bottom-1.5 left-0 right-0 text-center text-[10px] font-semibold"
+                        style={{ color: t.label }}
+                      >
+                        {t.name}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <Field
+                label="URL del logo / ícono"
+                hint="Imagen cuadrada PNG que aparece en la esquina superior de Apple Wallet"
+              >
+                <input
+                  type="text"
+                  value={p.stampIconUrl}
+                  onChange={e => setProgramData(d => ({ ...d, stampIconUrl: e.target.value }))}
+                  className="input text-sm"
+                  placeholder="https://... o /uploads/logo.png"
+                />
+              </Field>
+            </div>
+          )}
+
+          {/* ── Negocio ── */}
+          {section === 'negocio' && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
+              <Field label="Nombre del negocio">
+                <input
+                  type="text"
+                  value={businessData.name}
+                  onChange={e => setBusinessData(d => ({ ...d, name: e.target.value }))}
+                  className="input"
+                />
+              </Field>
+              <Field
+                label="URL de registro de clientes"
+                hint="El slug no se puede cambiar. Comparte esta URL con tus clientes."
+              >
+                <div className="flex items-center px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-mono text-gray-600 select-all">
+                  {typeof window !== 'undefined' ? window.location.origin : ''}/{businessData.slug}
+                </div>
+              </Field>
+            </div>
+          )}
+
+          {/* Save */}
+          <div className="flex items-center gap-4">
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-8 py-3 bg-slate-900 text-white font-semibold rounded-xl hover:bg-slate-700 transition disabled:opacity-50"
+            >
+              {saving ? 'Guardando…' : 'Guardar cambios'}
+            </button>
+            {saved && (
+              <span className="text-green-600 text-sm font-medium flex items-center gap-1.5">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Guardado correctamente
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* ─── Right: live preview ─────────────────── */}
+        <div className="xl:col-span-2 xl:sticky xl:top-6 space-y-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            <h3 className="text-sm font-semibold text-gray-900 mb-4">Vista previa en tiempo real</h3>
+
+            {/* Platform tabs */}
+            <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-5">
+              {(['apple', 'google'] as PreviewPlatform[]).map(pl => (
+                <button
+                  key={pl}
+                  type="button"
+                  onClick={() => setPlatform(pl)}
+                  className={`flex-1 py-1.5 text-xs font-medium rounded-md transition ${
+                    platform === pl ? 'bg-white text-slate-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {pl === 'apple' ? '🍎 Apple Wallet' : '📱 Google Wallet'}
+                </button>
+              ))}
             </div>
 
-            {/* Vista previa */}
-            <div>
-              <p className="text-sm font-medium text-gray-700 mb-2">Vista previa de la tarjeta</p>
-              <div
-                className="rounded-xl p-5 shadow-md"
-                style={{ backgroundColor: programData.backgroundColor }}
-              >
-                <p style={{ color: programData.labelColor }} className="text-xs font-medium mb-1">
-                  SELLOS
-                </p>
-                <p style={{ color: programData.foregroundColor }} className="text-3xl font-bold mb-3">
-                  0 / {programData.stampsRequired}
-                </p>
-                <p style={{ color: programData.labelColor }} className="text-xs font-medium mb-1">
-                  PREMIO
-                </p>
-                <p style={{ color: programData.foregroundColor }} className="text-sm">
-                  {programData.rewardDescription || 'Tu premio aquí'}
-                </p>
+            {/* Card preview */}
+            <div className="flex justify-center py-2">
+              {platform === 'apple' ? (
+                <AppleWalletCard
+                  businessName={businessData.name}
+                  stampsRequired={p.stampsRequired}
+                  rewardDescription={p.rewardDescription}
+                  bgColor={p.backgroundColor}
+                  fgColor={p.foregroundColor}
+                  labelColor={p.labelColor}
+                  logoUrl={p.stampIconUrl}
+                  currentStamps={previewStamps}
+                />
+              ) : (
+                <GoogleWalletCard
+                  businessName={businessData.name}
+                  programName={p.name}
+                  stampsRequired={p.stampsRequired}
+                  rewardDescription={p.rewardDescription}
+                  bgColor={p.backgroundColor}
+                  fgColor={p.foregroundColor}
+                  labelColor={p.labelColor}
+                  currentStamps={previewStamps}
+                />
+              )}
+            </div>
+
+            {/* Stamp preview slider */}
+            <div className="mt-5 pt-4 border-t border-gray-100">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-gray-500">Simular sellos</span>
+                <span className="text-xs font-bold text-slate-700 tabular-nums">
+                  {previewStamps} / {p.stampsRequired}
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max={p.stampsRequired}
+                value={previewStamps}
+                onChange={e => setPreviewStamps(parseInt(e.target.value))}
+                className="w-full accent-slate-900"
+              />
+              <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+                <span>Sin sellos</span>
+                <span>Premio listo 🎉</span>
               </div>
             </div>
           </div>
 
-          <div className="mt-6 flex items-center gap-4">
-            <button
-              type="submit"
-              disabled={saving}
-              className="px-6 py-2 bg-slate-900 text-white font-semibold rounded-xl hover:bg-slate-700 transition disabled:opacity-50"
-            >
-              {saving ? 'Guardando...' : 'Guardar Programa'}
-            </button>
-            {saved && (
-              <span className="text-green-600 text-sm font-medium">✓ Guardado correctamente</span>
-            )}
-          </div>
+          <p className="text-xs text-gray-400 text-center px-2">
+            El diseño puede variar ligeramente según la versión de iOS / Android del cliente.
+          </p>
         </div>
-      </form>
+      </div>
 
-      {/* Info negocio */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-5">Información del Negocio</h2>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del negocio</label>
-            <input
-              type="text"
-              value={businessData.name}
-              onChange={e => setBusinessData(d => ({ ...d, name: e.target.value }))}
-              className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
-            />
+      {/* Tailwind utility so "input" class works in JSX */}
+      <style jsx global>{`
+        .input {
+          width: 100%;
+          padding: 0.625rem 1rem;
+          border: 1px solid #d1d5db;
+          border-radius: 0.75rem;
+          font-size: 0.875rem;
+          transition: box-shadow 0.15s;
+        }
+        .input:focus {
+          outline: none;
+          box-shadow: 0 0 0 2px #64748b;
+        }
+      `}</style>
+    </form>
+  )
+}
+
+// ─── Shared sub-components ────────────────────────────────────────────────────
+
+function Field({
+  label, hint, children,
+}: {
+  label: string
+  hint?: string
+  children: React.ReactNode
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      {children}
+      {hint && <p className="mt-1 text-xs text-gray-400">{hint}</p>}
+    </div>
+  )
+}
+
+function ColorRow({
+  label, description, value, onChange,
+}: {
+  label: string
+  description: string
+  value: string
+  onChange: (v: string) => void
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <input
+        type="color"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5 flex-shrink-0"
+        style={{ backgroundColor: value }}
+      />
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-medium text-gray-700">{label}</div>
+        <div className="text-xs text-gray-400">{description}</div>
+      </div>
+      <input
+        type="text"
+        value={value}
+        maxLength={7}
+        onChange={e => {
+          const v = e.target.value
+          if (/^#[0-9a-fA-F]{0,6}$/.test(v)) onChange(v)
+        }}
+        className="w-[4.5rem] px-2 py-1.5 text-xs border border-gray-200 rounded-lg font-mono text-gray-600 focus:outline-none focus:ring-1 focus:ring-slate-400"
+      />
+    </div>
+  )
+}
+
+// ─── Apple Wallet card mockup ─────────────────────────────────────────────────
+
+function AppleWalletCard({
+  businessName, stampsRequired, rewardDescription,
+  bgColor, fgColor, labelColor, logoUrl, currentStamps,
+}: {
+  businessName: string
+  stampsRequired: number
+  rewardDescription: string
+  bgColor: string
+  fgColor: string
+  labelColor: string
+  logoUrl: string
+  currentStamps: number
+}) {
+  const rewardReady = currentStamps >= stampsRequired
+
+  return (
+    <div
+      style={{
+        width: 270,
+        borderRadius: 20,
+        overflow: 'hidden',
+        backgroundColor: bgColor,
+        boxShadow: '0 24px 64px rgba(0,0,0,0.45)',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif',
+        userSelect: 'none',
+        flexShrink: 0,
+      }}
+    >
+      {/* Top row: logo + business name */}
+      <div style={{ padding: '14px 16px 10px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        {logoUrl && logoUrl.startsWith('http') ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={logoUrl}
+            alt=""
+            style={{ width: 32, height: 32, borderRadius: 7, objectFit: 'cover', flexShrink: 0 }}
+          />
+        ) : (
+          <div style={{
+            width: 32, height: 32, borderRadius: 7,
+            background: 'rgba(255,255,255,0.18)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 18, flexShrink: 0,
+          }}>
+            🏪
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">URL de registro</label>
-            <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-600">
-              {process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/{business?.slug}
-            </div>
+        )}
+        <span style={{ color: fgColor, fontSize: 14, fontWeight: 700, letterSpacing: 0.1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {businessName || 'Nombre del negocio'}
+        </span>
+      </div>
+
+      {/* Strip: stamp circles */}
+      <div style={{ padding: '4px 14px 12px', background: bgColor }}>
+        <WalletStampStrip
+          current={currentStamps}
+          total={stampsRequired}
+          fgColor={fgColor}
+          rewardReady={rewardReady}
+        />
+      </div>
+
+      {/* Primary field row */}
+      <div style={{ padding: '0 16px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <div>
+          <div style={{ color: labelColor, fontSize: 8, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase' }}>
+            {rewardReady ? 'PREMIO DISPONIBLE' : 'SELLOS'}
           </div>
-          <button
-            onClick={saveBusiness}
-            className="px-6 py-2 bg-slate-900 text-white font-semibold rounded-xl hover:bg-slate-700 transition"
-          >
-            Guardar Negocio
-          </button>
+          <div style={{ color: fgColor, fontSize: 26, fontWeight: 700, lineHeight: 1.1, marginTop: 2 }}>
+            {rewardReady ? '🎉' : `${currentStamps} / ${stampsRequired}`}
+          </div>
         </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ color: labelColor, fontSize: 8, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase' }}>
+            TITULAR
+          </div>
+          <div style={{ color: fgColor, fontSize: 11, fontWeight: 500, marginTop: 2 }}>
+            Nombre Cliente
+          </div>
+        </div>
+      </div>
+
+      {/* Secondary fields */}
+      <div style={{ padding: '0 16px 14px', display: 'flex', gap: 20 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ color: labelColor, fontSize: 8, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase' }}>
+            PREMIO
+          </div>
+          <div style={{
+            color: fgColor, fontSize: 10, fontWeight: 500, marginTop: 2,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {rewardDescription || 'Tu premio aquí'}
+          </div>
+        </div>
+        <div style={{ flexShrink: 0 }}>
+          <div style={{ color: labelColor, fontSize: 8, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase' }}>
+            COMPLETAR
+          </div>
+          <div style={{ color: fgColor, fontSize: 10, fontWeight: 500, marginTop: 2 }}>
+            {stampsRequired} sellos
+          </div>
+        </div>
+      </div>
+
+      {/* QR code */}
+      <div style={{
+        background: 'white',
+        margin: '0 14px 16px',
+        borderRadius: 10,
+        padding: '10px 10px 6px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 5,
+      }}>
+        <QRCodePlaceholder size={72} />
+        <span style={{ fontSize: 8, color: '#888', letterSpacing: 0.8, textTransform: 'uppercase' }}>
+          Escanear en tienda
+        </span>
       </div>
     </div>
   )
 }
 
-function ColorPicker({
-  label,
-  value,
-  onChange,
+function WalletStampStrip({
+  current, total, fgColor, rewardReady,
 }: {
-  label: string
-  value: string
-  onChange: (v: string) => void
+  current: number
+  total: number
+  fgColor: string
+  rewardReady: boolean
 }) {
+  const n      = Math.min(total, 10)
+  const r      = Math.min(11, Math.floor(220 / (n * 2.5)))
+  const gap    = r * 0.6
+  const width  = n * 2 * r + (n - 1) * gap + 4
+  const height = 2 * r + 4
+
   return (
-    <div className="flex flex-col items-center gap-2">
-      <label className="text-xs text-gray-500">{label}</label>
-      <div className="relative">
-        <input
-          type="color"
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5"
-        />
+    <svg
+      width="100%"
+      viewBox={`0 0 ${width} ${height}`}
+      style={{ display: 'block', overflow: 'visible' }}
+    >
+      {Array.from({ length: n }).map((_, i) => {
+        const cx = 2 + i * (2 * r + gap) + r
+        const cy = 2 + r
+        const earned = i < current
+
+        if (rewardReady) {
+          return (
+            <g key={i}>
+              <circle cx={cx} cy={cy} r={r} fill={fgColor} />
+              <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle" fontSize={r * 1.1}>⭐</text>
+            </g>
+          )
+        }
+
+        return earned ? (
+          <g key={i}>
+            <circle cx={cx} cy={cy} r={r} fill={fgColor} />
+            <circle
+              cx={cx - r * 0.28} cy={cy - r * 0.28}
+              r={r * 0.22}
+              fill="white" fillOpacity="0.45"
+            />
+          </g>
+        ) : (
+          <circle
+            key={i}
+            cx={cx} cy={cy} r={r - 1.5}
+            fill="none"
+            stroke={fgColor}
+            strokeWidth="1.5"
+            strokeOpacity="0.4"
+          />
+        )
+      })}
+      {total > 10 && (
+        <text
+          x={width - 2} y={height / 2 + 1}
+          textAnchor="end" dominantBaseline="middle"
+          fontSize={9} fill={fgColor} fillOpacity="0.6"
+        >
+          +{total - 10}
+        </text>
+      )}
+    </svg>
+  )
+}
+
+function QRCodePlaceholder({ size = 64 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 21 21" shapeRendering="crispEdges">
+      <rect width="21" height="21" fill="white" />
+
+      {/* Top-left finder */}
+      <rect x="0" y="0" width="7" height="7" fill="#111" />
+      <rect x="1" y="1" width="5" height="5" fill="white" />
+      <rect x="2" y="2" width="3" height="3" fill="#111" />
+
+      {/* Top-right finder */}
+      <rect x="14" y="0" width="7" height="7" fill="#111" />
+      <rect x="15" y="1" width="5" height="5" fill="white" />
+      <rect x="16" y="2" width="3" height="3" fill="#111" />
+
+      {/* Bottom-left finder */}
+      <rect x="0" y="14" width="7" height="7" fill="#111" />
+      <rect x="1" y="15" width="5" height="5" fill="white" />
+      <rect x="2" y="16" width="3" height="3" fill="#111" />
+
+      {/* Timing patterns */}
+      {[8, 10, 12].map(x => <rect key={`h${x}`} x={x} y="6" width="1" height="1" fill="#111" />)}
+      {[8, 10, 12].map(y => <rect key={`v${y}`} x="6" y={y} width="1" height="1" fill="#111" />)}
+
+      {/* Data modules */}
+      {[
+        [8,8],[9,8],[10,8],[12,8],[13,8],
+        [8,9],[10,9],[12,9],
+        [9,10],[11,10],[13,10],
+        [8,11],[9,11],[11,11],[12,11],
+        [10,12],[11,12],[13,12],
+        [8,13],[9,13],[12,13],
+        [14,8],[16,8],[18,8],[20,8],
+        [15,9],[17,9],[19,9],
+        [14,10],[16,10],[18,10],[20,10],
+        [15,11],[17,11],
+        [14,12],[16,12],[19,12],
+        [8,14],[10,14],[12,14],[13,14],
+        [9,15],[11,15],[13,15],
+        [8,16],[10,16],[11,16],
+        [9,17],[12,17],[13,17],
+        [8,18],[10,18],[12,18],
+        [9,19],[11,19],[13,19],
+        [8,20],[10,20],[11,20],[12,20],
+      ].map(([x, y]) => (
+        <rect key={`d${x}${y}`} x={x} y={y} width="1" height="1" fill="#111" />
+      ))}
+    </svg>
+  )
+}
+
+// ─── Google Wallet card mockup ────────────────────────────────────────────────
+
+function GoogleWalletCard({
+  businessName, programName, stampsRequired, rewardDescription,
+  bgColor, fgColor, labelColor, currentStamps,
+}: {
+  businessName: string
+  programName: string
+  stampsRequired: number
+  rewardDescription: string
+  bgColor: string
+  fgColor: string
+  labelColor: string
+  currentStamps: number
+}) {
+  const rewardReady   = currentStamps >= stampsRequired
+  const stampVisual   = '●'.repeat(Math.min(currentStamps, 10))
+                      + '○'.repeat(Math.max(0, Math.min(stampsRequired, 10) - currentStamps))
+  const extraStamps   = stampsRequired > 10 ? ` (+${stampsRequired - 10})` : ''
+
+  return (
+    <div
+      style={{
+        width: 270,
+        borderRadius: 20,
+        overflow: 'hidden',
+        backgroundColor: bgColor,
+        boxShadow: '0 24px 64px rgba(0,0,0,0.45)',
+        fontFamily: '"Google Sans", Roboto, sans-serif',
+        userSelect: 'none',
+        flexShrink: 0,
+      }}
+    >
+      {/* Header */}
+      <div style={{ padding: '16px 18px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ flex: 1, minWidth: 0, paddingRight: 10 }}>
+          <div style={{ color: labelColor, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>
+            PROGRAMA DE FIDELIZACIÓN
+          </div>
+          <div style={{ color: fgColor, fontSize: 17, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {businessName || 'Nombre negocio'}
+          </div>
+          <div style={{ color: labelColor, fontSize: 10, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {programName || 'Tarjeta de sellos'}
+          </div>
+        </div>
+        <div style={{
+          width: 40, height: 40, borderRadius: '50%',
+          background: 'rgba(255,255,255,0.15)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 20, flexShrink: 0,
+        }}>
+          🏪
+        </div>
       </div>
-      <span className="text-xs text-gray-400">{value}</span>
+
+      {/* Stamp bar */}
+      <div style={{ background: 'rgba(0,0,0,0.2)', padding: '10px 18px 12px' }}>
+        <div style={{ color: labelColor, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>
+          {rewardReady ? '🎉 PREMIO LISTO' : 'SELLOS'}
+        </div>
+        <div style={{ color: fgColor, fontSize: 18, letterSpacing: 2, lineHeight: 1 }}>
+          {rewardReady ? '¡Reclama tu premio!' : stampVisual + extraStamps}
+        </div>
+      </div>
+
+      {/* Progress + reward */}
+      <div style={{ padding: '12px 18px 18px' }}>
+        <div style={{ color: labelColor, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase' }}>
+          PROGRESO
+        </div>
+        <div style={{ color: fgColor, fontSize: 12, fontWeight: 600, marginTop: 2, marginBottom: 10 }}>
+          {rewardReady
+            ? '¡Completaste todos los sellos!'
+            : `${currentStamps} de ${stampsRequired} — faltan ${stampsRequired - currentStamps}`}
+        </div>
+
+        <div style={{ borderTop: `1px solid rgba(255,255,255,0.15)`, paddingTop: 10 }}>
+          <div style={{ color: labelColor, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase' }}>
+            TU PREMIO
+          </div>
+          <div style={{ color: fgColor, fontSize: 12, fontWeight: 600, marginTop: 2 }}>
+            {rewardDescription || 'Tu premio aquí'}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
