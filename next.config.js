@@ -12,6 +12,7 @@ const nextConfig = {
     serverComponentsExternalPackages: [
       'passkit-generator',
       '@parse/node-apn',
+      'pngjs',
     ],
   },
 }

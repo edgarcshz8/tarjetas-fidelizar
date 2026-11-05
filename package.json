@@ -27,6 +27,7 @@
     "next": "^14.0.4",
     "next-auth": "^4.24.5",
     "passkit-generator": "^3.3.0",
+    "pngjs": "^7.0.0",
     "prisma": "^5.7.0",
     "qrcode": "^1.5.3",
     "react": "^18",
