@@ -1,35 +1,13 @@
-import { withAuth, type NextRequestWithAuth } from 'next-auth/middleware'
-import { NextResponse, type NextFetchEvent, type NextRequest } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 
-// Nota: con el código en src/app, Next.js solo lee src/middleware.ts (el de la raíz se ignoraba).
+// La autenticación del panel se valida en src/app/admin/layout.tsx y en cada API
+// con getServerSession, por eso aquí no se usa withAuth.
 
-const authMiddleware = withAuth({
-  callbacks: {
-    authorized: ({ token }) => !!token,
-  },
-  pages: {
-    signIn: '/admin/login',
-  },
-})
-
-// Solo proteger las rutas del panel (NO la página de login ni las API de passes/register)
-const PROTECTED_ROUTES = [
-  /^\/admin\/?$/,
-  /^\/admin\/(dashboard|scanner|customers|settings)(\/.*)?$/,
-  /^\/api\/(stamp|redeem)\/?$/,
-  /^\/api\/admin(\/.*)?$/,
-]
-
-export default function middleware(req: NextRequest, event: NextFetchEvent) {
+export function middleware(req: NextRequest) {
   // La app no usa Server Actions: cualquier petición con "Next-Action" viene de bots/escáneres.
   if (req.headers.has('next-action')) {
     return new NextResponse(null, { status: 400 })
   }
-
-  if (PROTECTED_ROUTES.some((re) => re.test(req.nextUrl.pathname))) {
-    return authMiddleware(req as NextRequestWithAuth, event)
-  }
-
   return NextResponse.next()
 }
 
