@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import jsQR from 'jsqr'
 
 type ScanState = 'idle' | 'scanning' | 'processing' | 'success' | 'error' | 'reward'
 
@@ -14,15 +15,16 @@ interface ScanResult {
 
 export default function QRScannerClient() {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const scanningRef = useRef(false)
   const [state, setState] = useState<ScanState>('idle')
   const [result, setResult] = useState<ScanResult | null>(null)
   const [error, setError] = useState('')
   const [manualSerial, setManualSerial] = useState('')
-  const [hasBarcodeDetector, setHasBarcodeDetector] = useState<boolean | null>(null)
+  const [lastSerial, setLastSerial] = useState('')
 
   useEffect(() => {
-    setHasBarcodeDetector('BarcodeDetector' in window)
     return () => { stopCamera() }
   }, [])
 
@@ -33,9 +35,6 @@ export default function QRScannerClient() {
       })
       streamRef.current = stream
 
-      // El <video> siempre está en el DOM (oculto en idle), así que el ref
-      // siempre existe aquí. Asignamos srcObject ANTES de setState para
-      // evitar la condición de carrera donde el elemento aún no existe.
       if (videoRef.current) {
         videoRef.current.srcObject = stream
         await videoRef.current.play().catch(() => {})
@@ -50,6 +49,7 @@ export default function QRScannerClient() {
   }
 
   function stopCamera() {
+    scanningRef.current = false
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop())
       streamRef.current = null
@@ -60,27 +60,47 @@ export default function QRScannerClient() {
   }
 
   function startScanning() {
-    if (!('BarcodeDetector' in window)) return
+    scanningRef.current = true
 
-    const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] })
+    const scan = () => {
+      if (!scanningRef.current) return
 
-    const scan = async () => {
-      if (!videoRef.current || !streamRef.current) return
-      try {
-        const barcodes = await detector.detect(videoRef.current)
-        if (barcodes.length > 0) {
-          await processSerial(barcodes[0].rawValue)
-        } else {
-          requestAnimationFrame(scan)
-        }
-      } catch {
+      const video = videoRef.current
+      const canvas = canvasRef.current
+      if (!video || !canvas) { requestAnimationFrame(scan); return }
+
+      const ctx = canvas.getContext('2d')
+      if (!ctx) { requestAnimationFrame(scan); return }
+
+      // Esperar a que el video tenga frames reales
+      if (video.readyState < video.HAVE_ENOUGH_DATA) {
         requestAnimationFrame(scan)
+        return
       }
+
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: 'dontInvert',
+      })
+
+      if (code?.data) {
+        scanningRef.current = false
+        processSerial(code.data)
+        return
+      }
+
+      requestAnimationFrame(scan)
     }
+
     requestAnimationFrame(scan)
   }
 
   async function processSerial(serial: string) {
+    setLastSerial(serial)
     setState('processing')
     stopCamera()
 
@@ -150,7 +170,7 @@ export default function QRScannerClient() {
           <h2 className="text-2xl font-bold text-green-800 mb-2">¡Premio Completado!</h2>
           <p className="text-green-700 font-medium mb-2">{result.customerName}</p>
           <p className="text-green-600 text-sm mb-6">{result.message}</p>
-          <RedeemButton serial={manualSerial} onDone={reset} />
+          <RedeemButton serial={lastSerial} onDone={reset} />
           <button onClick={reset} className="mt-3 w-full py-2 text-green-700 text-sm underline">
             Canjear después
           </button>
@@ -195,8 +215,7 @@ export default function QRScannerClient() {
       {/* Cámara */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
 
-        {/* Video: SIEMPRE en el DOM para que videoRef esté disponible al llamar
-            startCamera(). Se oculta con 'hidden' cuando no estamos escaneando. */}
+        {/* Video: siempre en el DOM para que videoRef esté disponible al iniciar */}
         <div className={state === 'scanning' ? 'relative' : 'hidden'}>
           <video
             ref={videoRef}
@@ -205,14 +224,14 @@ export default function QRScannerClient() {
             muted
             className="w-full aspect-square object-cover"
           />
+          {/* Canvas oculto: jsQR captura frames aquí para detectar QR */}
+          <canvas ref={canvasRef} className="hidden" />
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="w-48 h-48 border-4 border-white rounded-2xl opacity-70" />
           </div>
           <div className="absolute bottom-4 left-0 right-0 text-center">
             <p className="text-white text-sm font-medium drop-shadow">
-              {hasBarcodeDetector
-                ? 'Apunta al QR de la tarjeta del cliente'
-                : 'Cámara activa — usa el ingreso manual para agregar el serial'}
+              Apunta al QR de la tarjeta del cliente
             </p>
           </div>
         </div>
@@ -222,17 +241,10 @@ export default function QRScannerClient() {
           <div className="p-8 text-center">
             <div className="text-5xl mb-4">📷</div>
             <h3 className="font-semibold text-gray-900 mb-2">Escanear QR del cliente</h3>
-            {hasBarcodeDetector === false ? (
-              <p className="text-amber-600 text-sm mb-6">
-                Tu navegador no soporta lectura de QR automática.<br />
-                Usa el ingreso manual con el serial del pase.
-              </p>
-            ) : (
-              <p className="text-gray-500 text-sm mb-6">
-                Activa la cámara para escanear automáticamente,<br />
-                o ingresa el serial manualmente.
-              </p>
-            )}
+            <p className="text-gray-500 text-sm mb-6">
+              Activa la cámara para escanear automáticamente,<br />
+              o ingresa el serial manualmente.
+            </p>
             <button
               onClick={startCamera}
               className="w-full py-3 bg-slate-900 text-white font-semibold rounded-xl hover:bg-slate-700 transition"
