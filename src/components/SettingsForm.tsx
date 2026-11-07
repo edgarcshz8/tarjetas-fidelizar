@@ -625,55 +625,53 @@ function WalletStampStrip({
   stampEmoji: string
   rewardReady: boolean
 }) {
-  const n      = Math.min(total, 10)
-  const r      = Math.min(11, Math.floor(220 / (n * 2.5)))
-  const gap    = r * 0.6
-  const width  = n * 2 * r + (n - 1) * gap + 4
-  const height = 2 * r + 4
-  const emojiSize = r * 1.15
+  const n         = Math.min(total, 10)
+  const singleRow = n <= 5
+  const perRow1   = singleRow ? n : Math.ceil(n / 2)
+  const perRow2   = singleRow ? 0 : Math.floor(n / 2)
+
+  const r       = Math.min(11, Math.floor(220 / (perRow1 * 2.5)))
+  const gap     = r * 0.6
+  const rowGap  = r * 1.0
+  const rowW    = (count: number) => count * 2 * r + (count - 1) * gap
+  const svgW    = rowW(perRow1) + 4
+  const svgH    = singleRow ? 2 * r + 4 : 2 * (2 * r) + rowGap + 4
+  const emojiSz = r * 1.15
+
+  function StampRow({ count, offset, cy }: { count: number; offset: number; cy: number }) {
+    // center this row horizontally within svgW
+    const rowStart = (svgW - rowW(count)) / 2 + r
+    return (
+      <>
+        {Array.from({ length: count }).map((_, i) => {
+          const cx     = rowStart + i * (2 * r + gap)
+          const earned = (offset + i) < current
+          return (
+            <g key={i}>
+              {earned ? (
+                <circle cx={cx} cy={cy} r={r} fill={fgColor} />
+              ) : (
+                <circle cx={cx} cy={cy} r={r - 1.5} fill="none" stroke={fgColor} strokeWidth="1.5" strokeOpacity="0.35" />
+              )}
+              <text x={cx} y={cy + 0.5} textAnchor="middle" dominantBaseline="middle" fontSize={emojiSz} opacity={earned ? 1 : 0.3}>
+                {rewardReady ? '🏆' : stampEmoji}
+              </text>
+            </g>
+          )
+        })}
+      </>
+    )
+  }
+
+  const cy1 = 2 + r
+  const cy2 = 2 + r + 2 * r + rowGap
 
   return (
-    <svg
-      width="100%"
-      viewBox={`0 0 ${width} ${height}`}
-      style={{ display: 'block', overflow: 'visible' }}
-    >
-      {Array.from({ length: n }).map((_, i) => {
-        const cx     = 2 + i * (2 * r + gap) + r
-        const cy     = 2 + r
-        const earned = i < current
-
-        return (
-          <g key={i}>
-            {earned ? (
-              <circle cx={cx} cy={cy} r={r} fill={fgColor} />
-            ) : (
-              <circle
-                cx={cx} cy={cy} r={r - 1.5}
-                fill="none"
-                stroke={fgColor}
-                strokeWidth="1.5"
-                strokeOpacity="0.35"
-              />
-            )}
-            <text
-              x={cx} y={cy + 0.5}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontSize={emojiSize}
-              opacity={earned ? 1 : 0.3}
-            >
-              {rewardReady ? '🏆' : stampEmoji}
-            </text>
-          </g>
-        )
-      })}
+    <svg width="100%" viewBox={`0 0 ${svgW} ${svgH}`} style={{ display: 'block', overflow: 'visible' }}>
+      <StampRow count={perRow1} offset={0}       cy={cy1} />
+      {perRow2 > 0 && <StampRow count={perRow2} offset={perRow1} cy={cy2} />}
       {total > 10 && (
-        <text
-          x={width - 2} y={height / 2 + 1}
-          textAnchor="end" dominantBaseline="middle"
-          fontSize={9} fill={fgColor} fillOpacity="0.6"
-        >
+        <text x={svgW - 2} y={svgH / 2} textAnchor="end" dominantBaseline="middle" fontSize={9} fill={fgColor} fillOpacity="0.6">
           +{total - 10}
         </text>
       )}

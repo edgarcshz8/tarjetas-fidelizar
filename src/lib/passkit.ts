@@ -104,16 +104,19 @@ export function generateStripPNG(
     png.data[i * 4 + 3] = 255
   }
 
-  const n = Math.min(total, 10)
-  const perRow1 = Math.ceil(n / 2)   // fila superior (toma el extra si n es impar)
-  const perRow2 = Math.floor(n / 2)  // fila inferior
+  const n         = Math.min(total, 10)
+  const singleRow = n <= 5
+  const perRow1   = singleRow ? n : Math.ceil(n / 2)
+  const perRow2   = singleRow ? 0 : Math.floor(n / 2)
 
-  // Dos filas usando todo el alto del strip (sin primaryField superpuesto).
-  // Filas centradas al 28 % y 72 % — margen simétrico de ~12 % arriba y abajo.
-  const r    = Math.min(h * 0.19, (w * 0.94) / (perRow1 * 2.1))
-  const gap  = r * 0.10
-  const cy1  = h * 0.28
-  const cy2  = h * 0.72
+  // 1 fila  (n ≤ 5): sellos grandes centrados verticalmente.
+  // 2 filas (n > 5): filas al 28 % y 72 %, margen simétrico ~12 %.
+  const r   = singleRow
+    ? Math.min(h * 0.38, (w * 0.94) / (n * 2.1))
+    : Math.min(h * 0.19, (w * 0.94) / (perRow1 * 2.1))
+  const gap = r * 0.10
+  const cy1 = singleRow ? h * 0.50 : h * 0.28
+  const cy2 = h * 0.72
 
   function setPixel(px: number, py: number, cr: number, cg: number, cb: number, alpha: number) {
     if (px < 0 || px >= w || py < 0 || py >= h) return
