@@ -91,7 +91,8 @@ export async function POST(req: NextRequest) {
     }
 
     // ─── URLs de descarga ───────────────────────────────────────────────────
-    const appUrl = process.env.APP_URL || 'http://localhost:3000'
+    const rawAppUrl = process.env.APP_URL || 'http://localhost:3000'
+    const appUrl = /^https?:\/\//.test(rawAppUrl) ? rawAppUrl : `https://${rawAppUrl}`
     const applePassUrl = `${appUrl}/api/passes/apple/${passRecord.serialNumber}/download`
 
     let googleWalletUrl = '#'

@@ -8,7 +8,9 @@ export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/admin/login')
 
-  const appUrl = process.env.APP_URL || 'http://localhost:3000'
+  const rawAppUrl = process.env.APP_URL || 'http://localhost:3000'
+  // Ensure APP_URL always has a protocol (guards against missing https:// in env)
+  const appUrl = /^https?:\/\//.test(rawAppUrl) ? rawAppUrl : `https://${rawAppUrl}`
   const registrationUrl = `${appUrl}/${session.user.businessSlug}`
 
   let stats: Awaited<ReturnType<typeof fetchStats>>

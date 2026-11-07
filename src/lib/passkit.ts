@@ -130,7 +130,8 @@ function generateStripPNG(
 
 export async function generateApplePass(passData: PassData): Promise<Buffer> {
   const { customer, program, serialNumber, authToken, currentStamps, rewardReady } = passData
-  const appUrl = process.env.APP_URL || 'http://localhost:3000'
+  const rawAppUrl = process.env.APP_URL || 'http://localhost:3000'
+  const appUrl = /^https?:\/\//.test(rawAppUrl) ? rawAppUrl : `https://${rawAppUrl}`
 
   const stampsLabel = rewardReady
     ? '🎉 ¡PREMIO LISTO!'
