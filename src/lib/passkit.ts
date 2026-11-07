@@ -24,22 +24,42 @@ function hexToRgbTuple(hex: string): [number, number, number] {
 
 // Loads a certificate from base64 env var (production/Docker) or from a file (local dev).
 function loadCert(b64Value: string | undefined, filePath: string): Buffer {
-  if (b64Value) {
-    return Buffer.from(b64Value, 'base64')
+  if (b64Value) return Buffer.from(b64Value, 'base64')
+  return fs.readFileSync(path.resolve(process.cwd(), filePath))
+}
+
+// Fetches the logo/icon PNG from a URL or local path.
+// Falls back to a generated circle if unavailable.
+async function loadLogoBuffer(
+  stampIconUrl: string | null | undefined,
+  bgHex: string,
+  fgHex: string,
+  fallbackSize: number,
+): Promise<Buffer> {
+  if (stampIconUrl) {
+    if (stampIconUrl.startsWith('http')) {
+      try {
+        const res = await fetch(stampIconUrl, { signal: AbortSignal.timeout(4000) })
+        if (res.ok) return Buffer.from(await res.arrayBuffer())
+      } catch {
+        // fall through to generated circle
+      }
+    } else if (stampIconUrl.startsWith('/')) {
+      const p = path.resolve(process.cwd(), 'public', stampIconUrl.slice(1))
+      if (fs.existsSync(p)) return fs.readFileSync(p)
+    }
   }
-  const resolved = path.resolve(process.cwd(), filePath)
-  return fs.readFileSync(resolved)
+  return generateCirclePNG(fallbackSize, bgHex, fgHex)
 }
 
 // ─── Generador de strip PNG ──────────────────────────────────────────────────
 //
-// Dibuja N círculos en fila:
-//   · Ganados  → círculo relleno en foregroundColor
-//   · Pendientes → anillo vacío (semi-transparente)
+// Dibuja N círculos en fila en el TERCIO SUPERIOR del strip.
+// Apple Wallet renderiza el texto del primaryField en la parte INFERIOR del strip,
+// por lo que los círculos deben estar en la parte superior para no solaparse.
 //
-// La imagen se posiciona en el tercio superior del strip para no
-// solaparse con el texto del primaryField que Apple Wallet
-// renderiza en la parte inferior de esa misma área.
+//   · Ganados    → círculo relleno en foregroundColor con brillo
+//   · Pendientes → anillo vacío semi-transparente
 
 function generateStripPNG(
   current: number,
@@ -62,12 +82,13 @@ function generateStripPNG(
   }
 
   const n = Math.min(total, 10)
-  const r = Math.min(h * 0.28, (w * 0.88) / (n * 2.6))
+  const r = Math.min(h * 0.22, (w * 0.88) / (n * 2.6))
   const gap = r * 0.55
   const totalW = n * 2 * r + (n - 1) * gap
   const startX = (w - totalW) / 2 + r
-  // Circles centered at 42% from top — well above the primaryField text area at the bottom
-  const cy = h * 0.42
+  // Circles centered at 27% from top — Apple renders the primaryField text in the lower
+  // ~55% of the strip area, so this keeps circles clearly in the upper portion.
+  const cy = h * 0.27
 
   function setPixel(px: number, py: number, cr: number, cg: number, cb: number, alpha: number) {
     if (px < 0 || px >= w || py < 0 || py >= h) return
@@ -120,9 +141,6 @@ function generateStripPNG(
 }
 
 // ─── Generador de icono PNG ───────────────────────────────────────────────────
-//
-// Genera un círculo relleno del color del programa sobre el fondo.
-// Usado para icon.png (29×29 / 58×58) y logo.png (50×50 / 100×100).
 
 function generateCirclePNG(size: number, bgHex: string, fgHex: string): Buffer {
   const png = new PNG({ width: size, height: size })
@@ -154,12 +172,6 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
   const rawAppUrl = process.env.APP_URL || 'http://localhost:3000'
   const appUrl = /^https?:\/\//.test(rawAppUrl) ? rawAppUrl : `https://${rawAppUrl}`
 
-  // primaryField shows only a status label — no number so it doesn't overlap the strip circles.
-  // secondaryField carries the actual count with changeMessage so iOS shows an update notification.
-  const stampCountValue = rewardReady
-    ? '🎉 ¡PREMIO LISTO!'
-    : `${currentStamps} / ${program.stampsRequired}`
-
   // ─── Certificados ──────────────────────────────────────────────────────────
   const wwdr       = loadCert(process.env.APPLE_WWDR_B64,  process.env.APPLE_WWDR_PATH  || './certs/wwdr.pem')
   const signerCert = loadCert(process.env.APPLE_CERT_B64,  process.env.APPLE_CERT_PATH  || './certs/signerCert.pem')
@@ -176,34 +188,31 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
   }
 
   // ─── Imágenes ──────────────────────────────────────────────────────────────
-  // icon: 29×29 / 58×58 (requerido por Apple Wallet para notificaciones)
-  // logo: 50×50 / 100×100 (esquina superior izquierda del pase)
-  // Si el negocio tiene un logo PNG en /public, se usa; si no, generamos un círculo de color.
+  // icon: 29×29 / 58×58  — notificaciones y listado de pases
+  // logo: 50×50 / 100×100 — esquina superior izquierda del pase
+  //
+  // Si stampIconUrl es una URL HTTP, se descarga; si es ruta local (/...), se lee del disco.
+  // Mismo buffer para icon y logo — Apple los recorta en círculo automáticamente.
 
-  let iconBuffer: Buffer
-  if (program.stampIconUrl && program.stampIconUrl.startsWith('/')) {
-    const iconPath = path.resolve(process.cwd(), 'public', program.stampIconUrl.slice(1))
-    iconBuffer = fs.existsSync(iconPath)
-      ? fs.readFileSync(iconPath)
-      : generateCirclePNG(29, program.backgroundColor, program.foregroundColor)
-  } else {
-    iconBuffer = generateCirclePNG(29, program.backgroundColor, program.foregroundColor)
-  }
+  const logoSrc = await loadLogoBuffer(
+    program.stampIconUrl,
+    program.backgroundColor,
+    program.foregroundColor,
+    100,
+  )
 
-  const icon2xBuffer = generateCirclePNG(58,  program.backgroundColor, program.foregroundColor)
-  const logoBuffer   = generateCirclePNG(50,  program.backgroundColor, program.foregroundColor)
-  const logo2xBuffer = generateCirclePNG(100, program.backgroundColor, program.foregroundColor)
+  // icon.png must be small (29px); if the fetched image is large it's fine — Apple rescales.
+  const iconBuffer   = logoSrc
+  const icon2xBuffer = logoSrc
+  const logoBuffer   = logoSrc
+  const logo2xBuffer = logoSrc
 
   // Strip @1x 375×144 / @2x 750×288 / @3x 1125×432
-  // Taller than the old 320×100 so the primaryField text (rendered at the bottom)
-  // doesn't overlap the circles, which sit in the upper portion of the strip.
   const stripBuffer   = generateStripPNG(currentStamps, program.stampsRequired, program.backgroundColor, program.foregroundColor,  375, 144)
   const strip2xBuffer = generateStripPNG(currentStamps, program.stampsRequired, program.backgroundColor, program.foregroundColor,  750, 288)
   const strip3xBuffer = generateStripPNG(currentStamps, program.stampsRequired, program.backgroundColor, program.foregroundColor, 1125, 432)
 
   // ─── Construcción del pase ─────────────────────────────────────────────────
-  // PKPass v3.x API: new PKPass(buffers, certificates, overridableProps)
-  // pass.json se genera internamente; NO incluirlo en buffers.
 
   const pass = new PKPass(
     {
@@ -232,42 +241,34 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
     } as any,
   )
 
-  // Tipo de pase — obligatorio antes de agregar campos
   pass.type = 'storeCard'
 
-  // primaryField: only a status label painted at the bottom of the strip area.
-  // Keeping it short prevents overlap with the circle graphics above it.
+  // primaryField: shown large in the lower portion of the strip area.
+  // Shows the stamp counter so it matches the web preview ("SELLOS / 1 / 10").
+  // changeMessage triggers the iOS notification text when the pass updates.
   pass.primaryFields.push({
-    key:           'status',
-    label:         program.name,
-    value:         rewardReady ? '🎉 PREMIO' : program.business.name,
-    textAlignment: 'PKTextAlignmentCenter',
+    key:           'stamps',
+    label:         rewardReady ? 'PREMIO DISPONIBLE' : 'SELLOS',
+    value:         rewardReady ? '🎉 PREMIO' : `${currentStamps} / ${program.stampsRequired}`,
+    changeMessage: rewardReady ? '🎉 ¡Premio listo!' : 'Nuevo sello: %@',
   })
 
-  // secondaryFields: stamp count with changeMessage so iOS shows "pass updated" notification.
+  // secondaryFields: one row below the strip — TITULAR on the left, COMPLETAR on the right.
   pass.secondaryFields.push(
-    {
-      key:           'stamps',
-      label:         rewardReady ? 'PREMIO DISPONIBLE' : 'SELLOS',
-      value:         stampCountValue,
-      changeMessage: rewardReady
-        ? '🎉 ¡Premio listo! Ahora tienes %@'
-        : `Ahora tienes %@ sellos`,
-    },
+    { key: 'holder',   label: 'TITULAR',   value: customer.name },
+    { key: 'required', label: 'COMPLETAR', value: `${program.stampsRequired} sellos` },
+  )
+
+  // auxiliaryFields: second row — prize description.
+  pass.auxiliaryFields.push(
     { key: 'reward', label: 'PREMIO', value: program.rewardDescription },
   )
 
-  pass.auxiliaryFields.push({
-    key:   'holder',
-    label: 'TITULAR',
-    value: customer.name,
-  })
-
   pass.backFields.push(
-    { key: 'fullName',     label: 'Nombre',              value: customer.name },
-    { key: 'email',        label: 'Email',                value: customer.email },
-    { key: 'programDesc',  label: 'Programa',             value: program.description || program.name },
-    { key: 'rewardDetail', label: 'Premio al completar',  value: program.rewardDescription },
+    { key: 'fullName',     label: 'Nombre',             value: customer.name },
+    { key: 'email',        label: 'Email',               value: customer.email },
+    { key: 'programDesc',  label: 'Programa',            value: program.description || program.name },
+    { key: 'rewardDetail', label: 'Premio al completar', value: program.rewardDescription },
     {
       key:   'terms',
       label: 'Condiciones',
@@ -275,7 +276,6 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
     },
   )
 
-  // Código QR — solo QR para tarjeta de fidelización
   pass.setBarcodes({
     format:          'PKBarcodeFormatQR',
     message:         serialNumber,
