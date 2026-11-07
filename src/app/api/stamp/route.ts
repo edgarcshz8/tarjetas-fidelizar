@@ -8,7 +8,8 @@ import { pushPassUpdate } from '@/lib/apns'
 export const runtime = 'nodejs'
 
 // POST /api/stamp → agrega un sello a un pase
-// Body: { serialNumber: string }
+// Body: { serialNumber: string } — desde escáner QR (serial completo)
+//       { email: string }        — desde ingreso manual (email del cliente)
 // Auth: sesión de merchant (admin panel)
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -16,22 +17,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 
-  const { serialNumber } = await req.json()
-  if (!serialNumber) {
-    return NextResponse.json({ error: 'serialNumber requerido' }, { status: 400 })
+  const body = await req.json()
+  const { serialNumber, email } = body as { serialNumber?: string; email?: string }
+
+  if (!serialNumber && !email) {
+    return NextResponse.json({ error: 'Proporciona serialNumber o email' }, { status: 400 })
   }
 
-  // Verificar que el pase pertenece al negocio del usuario autenticado
-  const passRecord = await prisma.customerPass.findUnique({
-    where: { serialNumber },
-    include: {
-      customer: true,
-      program: { include: { business: true } },
-    },
-  })
+  // ─── Buscar el pase ────────────────────────────────────────────────────────
+  const include = { customer: true, program: { include: { business: true } } } as const
+
+  const passRecord = serialNumber
+    ? await prisma.customerPass.findFirst({ where: { serialNumber }, include })
+    : await prisma.customerPass.findFirst({
+        where: {
+          customer: { email: (email as string).toLowerCase().trim() },
+          program:  { businessId: session.user.businessId },
+        },
+        include,
+      })
 
   if (!passRecord) {
-    return NextResponse.json({ error: 'Pase no encontrado' }, { status: 404 })
+    const hint = email
+      ? `No se encontró ningún cliente registrado con el email "${email}" en tu negocio.`
+      : 'Pase no encontrado.'
+    return NextResponse.json({ error: hint }, { status: 404 })
   }
 
   if (passRecord.program.businessId !== session.user.businessId) {
@@ -60,10 +70,10 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // Incremento atómico: evita race condition cuando dos dispositivos escanean a la vez
+  // Incremento atómico
   const updatedPass = await prisma.$transaction(async tx => {
     const pass = await tx.customerPass.update({
-      where: { id: passRecord.id },
+      where: { id: passRecord!.id },
       data: {
         currentStamps: { increment: 1 },
         applePassUpdatedAt: new Date(),
@@ -74,7 +84,7 @@ export async function POST(req: NextRequest) {
     const shouldReward = pass.currentStamps >= pass.program.stampsRequired && !pass.rewardReady
     if (shouldReward) {
       return tx.customerPass.update({
-        where: { id: passRecord.id },
+        where: { id: passRecord!.id },
         data: { rewardReady: true },
         include: { customer: true, program: { include: { business: true } } },
       })
@@ -84,23 +94,17 @@ export async function POST(req: NextRequest) {
 
   const rewardReady = updatedPass.rewardReady
 
-  // Registrar el sello en el historial
   await prisma.stamp.create({
-    data: {
-      passId: passRecord.id,
-      addedById: user.id,
-    },
+    data: { passId: passRecord.id, addedById: user.id },
   })
 
-  // Actualizar Google Wallet de forma asíncrona (no bloquear la respuesta)
   if (updatedPass.googleObjectId) {
     updateLoyaltyObject(updatedPass as any).catch(err =>
       console.error('[stamp] Error actualizando Google Wallet:', err)
     )
   }
 
-  // Enviar push notification a dispositivos Apple
-  pushPassUpdate(serialNumber).catch(err =>
+  pushPassUpdate(passRecord.serialNumber).catch(err =>
     console.error('[stamp] Error enviando APNS push:', err)
   )
 
