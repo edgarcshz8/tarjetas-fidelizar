@@ -95,9 +95,14 @@ export async function pushPassUpdate(serialNumber: string): Promise<void> {
   // Topic MUST be exactly the passTypeIdentifier — no ".voip" or any suffix
   notification.topic    = ctx.passTypeId
   notification.priority = 10
-  notification.payload  = {}
+  // rawPayload overrides the entire body; using `payload={}` leaves the body empty
+  // because node-apn only serializes it when there are actual keys — APNs rejects
+  // an empty body with 400 PayloadEmpty. rawPayload={} produces the required "{}".
+  ;(notification as any).rawPayload = {}
   // apns-push-type: background — required by iOS 13+ for Wallet pass update signals
   ;(notification as any).pushType = 'background'
+
+  console.log('[APNS] body', JSON.stringify((notification as any).rawPayload))
 
   for (const device of devices) {
     try {
