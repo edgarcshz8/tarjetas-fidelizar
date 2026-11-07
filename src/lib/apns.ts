@@ -5,20 +5,24 @@ import { prisma } from '@/lib/prisma'
 // Sin configurar, los pases se actualizan la próxima vez que el cliente los abre.
 
 export async function pushPassUpdate(serialNumber: string): Promise<void> {
+  const keyB64  = process.env.APPLE_APN_KEY_B64
   const keyPath = process.env.APPLE_APN_KEY_PATH
-  const keyId = process.env.APPLE_APN_KEY_ID
-  const teamId = process.env.APPLE_TEAM_IDENTIFIER
+  const keyId   = process.env.APPLE_APN_KEY_ID
+  const teamId  = process.env.APPLE_TEAM_IDENTIFIER
 
-  if (!keyPath || !keyId || !teamId) {
+  if ((!keyB64 && !keyPath) || !keyId || !teamId) {
     return
   }
+
+  // Prefer base64 (works in Docker); fall back to file path for local dev
+  const key: string | Buffer = keyB64 ? Buffer.from(keyB64, 'base64') : keyPath!
 
   try {
     const apn = await import('@parse/node-apn')
 
     const provider = new apn.default.Provider({
       token: {
-        key: keyPath,
+        key,
         keyId,
         teamId,
       },

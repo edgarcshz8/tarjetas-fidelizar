@@ -22,9 +22,15 @@ function hexToRgbTuple(hex: string): [number, number, number] {
   return [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)]
 }
 
-function loadCert(envPath: string): Buffer {
-  const filePath = path.resolve(process.cwd(), envPath)
-  return fs.readFileSync(filePath)
+// Carga un certificado desde base64 (variable de entorno con el contenido)
+// o desde un archivo en disco (desarrollo local).
+// Prioridad: base64 > archivo.
+function loadCert(b64Value: string | undefined, filePath: string): Buffer {
+  if (b64Value) {
+    return Buffer.from(b64Value, 'base64')
+  }
+  const resolved = path.resolve(process.cwd(), filePath)
+  return fs.readFileSync(resolved)
 }
 
 // ─── Generador de strip PNG ──────────────────────────────────────────────────
@@ -198,9 +204,9 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
     },
   }
 
-  const wwdr      = loadCert(process.env.APPLE_WWDR_PATH  || './certs/wwdr.pem')
-  const signerCert = loadCert(process.env.APPLE_CERT_PATH || './certs/signerCert.pem')
-  const signerKey  = loadCert(process.env.APPLE_KEY_PATH  || './certs/signerKey.pem')
+  const wwdr       = loadCert(process.env.APPLE_WWDR_B64,  process.env.APPLE_WWDR_PATH  || './certs/wwdr.pem')
+  const signerCert = loadCert(process.env.APPLE_CERT_B64,  process.env.APPLE_CERT_PATH  || './certs/signerCert.pem')
+  const signerKey  = loadCert(process.env.APPLE_KEY_B64,   process.env.APPLE_KEY_PATH   || './certs/signerKey.pem')
 
   let iconBuffer: Buffer
   if (program.stampIconUrl && program.stampIconUrl.startsWith('/')) {
