@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { updateLoyaltyObject } from '@/lib/google-wallet'
+import { updateLoyaltyObject, pushGoogleWalletMessage } from '@/lib/google-wallet'
 import { pushPassUpdate } from '@/lib/apns'
 
 export const runtime = 'nodejs'
@@ -99,9 +99,16 @@ export async function POST(req: NextRequest) {
   })
 
   if (updatedPass.googleObjectId) {
-    updateLoyaltyObject(updatedPass as any).catch(err =>
-      console.error('[stamp] Error actualizando Google Wallet:', err)
-    )
+    updateLoyaltyObject(updatedPass as any)
+      .then(() =>
+        pushGoogleWalletMessage(
+          updatedPass.googleObjectId!,
+          updatedPass.currentStamps,
+          updatedPass.program.stampsRequired,
+          rewardReady,
+        )
+      )
+      .catch(err => console.error('[stamp] Error Google Wallet push:', err))
   }
 
   pushPassUpdate(passRecord.serialNumber).catch(err =>

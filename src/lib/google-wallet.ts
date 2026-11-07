@@ -215,6 +215,38 @@ function buildLoyaltyObjectPayload(params: {
   }
 }
 
+// ─── PUSH NOTIFICATION VÍA addMessage ────────────────────────────────────────
+// addMessage triggers a push to the user's device AND causes Google Wallet
+// to re-fetch the loyalty object, so the updated stamp count appears immediately.
+
+export async function pushGoogleWalletMessage(
+  googleObjectId: string,
+  currentStamps: number,
+  stampsRequired: number,
+  rewardReady: boolean,
+): Promise<void> {
+  const auth = getGoogleAuth()
+  const client = await auth.getClient()
+
+  const header = rewardReady ? '🎉 ¡Premio listo!' : '☕ ¡Nuevo sello!'
+  const body   = rewardReady
+    ? '¡Completaste todos tus sellos! Muestra esta tarjeta al comerciante.'
+    : `Tienes ${currentStamps} de ${stampsRequired} sellos.`
+
+  await (client as any).request({
+    url: `${GOOGLE_WALLET_API}/loyaltyObject/${encodeURIComponent(googleObjectId)}/addMessage`,
+    method: 'POST',
+    data: {
+      message: {
+        header,
+        body,
+        id:          `stamp_${Date.now()}`,
+        messageType: 'TEXT',
+      },
+    },
+  })
+}
+
 // ─── JWT PARA "SAVE TO GOOGLE WALLET" ────────────────────────────────────────
 
 export function generateSaveToWalletJwt(objectId: string): string {
