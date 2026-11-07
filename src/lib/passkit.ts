@@ -105,12 +105,15 @@ function generateStripPNG(
   }
 
   const n = Math.min(total, 10)
-  const r = Math.min(h * 0.42, (w * 0.97) / (n * 2.05))
-  const gap = r * 0.05
-  const totalW = n * 2 * r + (n - 1) * gap
-  const startX = (w - totalW) / 2 + r
-  // Centered at 27% from top — Apple renders the primaryField text in the lower ~55%.
-  const cy = h * 0.27
+  const perRow1 = Math.ceil(n / 2)   // fila superior (toma el extra si n es impar)
+  const perRow2 = Math.floor(n / 2)  // fila inferior
+
+  // Dos filas usando todo el alto del strip (sin primaryField superpuesto).
+  // Filas centradas al 28 % y 72 % — margen simétrico de ~12 % arriba y abajo.
+  const r    = Math.min(h * 0.19, (w * 0.94) / (perRow1 * 2.1))
+  const gap  = r * 0.10
+  const cy1  = h * 0.28
+  const cy2  = h * 0.72
 
   function setPixel(px: number, py: number, cr: number, cg: number, cb: number, alpha: number) {
     if (px < 0 || px >= w || py < 0 || py >= h) return
@@ -122,12 +125,8 @@ function generateStripPNG(
     png.data[idx + 3] = 255
   }
 
-  for (let i = 0; i < n; i++) {
-    const cx = startX + i * (2 * r + gap)
-    const earned = i < current
+  function drawCup(cx: number, cy: number, earned: boolean) {
     const strokeW = Math.max(1.5, r * 0.13)
-
-    // Bounding box — extend right to cover the handle
     const x0 = Math.floor(cx - r - 1)
     const x1 = Math.ceil(cx + r + r * 0.2 + 1)
     const y0 = Math.floor(cy - r - 1)
@@ -135,43 +134,50 @@ function generateStripPNG(
 
     for (let py = y0; py <= y1; py++) {
       for (let px = x0; px <= x1; px++) {
-        const dist = Math.sqrt((px - cx) ** 2 + (py - cy) ** 2)
+        const dist     = Math.sqrt((px - cx) ** 2 + (py - cy) ** 2)
         const inCircle = dist <= r + 1
         const circleAA = Math.max(0, Math.min(1, r - dist + 0.8))
-        const inCup = inCoffeeCup(px, py, cx, cy, r)
+        const inCup    = inCoffeeCup(px, py, cx, cy, r)
 
         if (earned) {
           if (circleAA > 0) {
             if (inCup) {
-              // Cup silhouette carved from the filled circle in background color
               setPixel(px, py, bg[0], bg[1], bg[2], Math.round(circleAA * 195))
             } else {
-              // Circle fill in foreground color
               setPixel(px, py, fg[0], fg[1], fg[2], Math.round(circleAA * 255))
             }
           }
-          // Subtle highlight on top-left (outside the cup carve-out)
           if (inCircle && !inCup) {
-            const glowCx = cx - r * 0.28
-            const glowCy = cy - r * 0.28
+            const glowCx   = cx - r * 0.28
+            const glowCy   = cy - r * 0.28
             const glowDist = Math.sqrt((px - glowCx) ** 2 + (py - glowCy) ** 2)
-            const glowAA = Math.max(0, Math.min(1, r * 0.22 - glowDist + 0.5))
+            const glowAA   = Math.max(0, Math.min(1, r * 0.22 - glowDist + 0.5))
             if (glowAA > 0) setPixel(px, py, 255, 255, 255, Math.round(glowAA * 100))
           }
         } else {
-          // Unearned: ring outline
-          const inner = r - strokeW
+          const inner   = r - strokeW
           const outerAA = Math.max(0, Math.min(1, r - dist + 0.8))
           const innerAA = Math.max(0, Math.min(1, dist - inner + 0.8))
-          const ringAA = Math.min(outerAA, innerAA)
+          const ringAA  = Math.min(outerAA, innerAA)
           if (ringAA > 0) setPixel(px, py, fg[0], fg[1], fg[2], Math.round(ringAA * 115))
-
-          // Faint cup silhouette inside the ring for unearned stamps
-          if (inCircle && inCup && dist < inner) {
-            setPixel(px, py, fg[0], fg[1], fg[2], 28)
-          }
+          if (inCircle && inCup && dist < inner) setPixel(px, py, fg[0], fg[1], fg[2], 28)
         }
       }
+    }
+  }
+
+  const totalW1 = perRow1 * 2 * r + (perRow1 - 1) * gap
+  const startX1 = (w - totalW1) / 2 + r
+
+  for (let i = 0; i < perRow1; i++) {
+    drawCup(startX1 + i * (2 * r + gap), cy1, i < current)
+  }
+
+  if (perRow2 > 0) {
+    const totalW2 = perRow2 * 2 * r + (perRow2 - 1) * gap
+    const startX2 = (w - totalW2) / 2 + r
+    for (let i = 0; i < perRow2; i++) {
+      drawCup(startX2 + i * (2 * r + gap), cy2, (perRow1 + i) < current)
     }
   }
 
@@ -281,18 +287,15 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
 
   pass.type = 'storeCard'
 
-  // primaryField: shown large in the lower portion of the strip area.
-  // Shows the stamp counter so it matches the web preview ("SELLOS / 1 / 10").
-  // changeMessage triggers the iOS notification text when the pass updates.
-  pass.primaryFields.push({
-    key:           'stamps',
-    label:         rewardReady ? 'PREMIO DISPONIBLE' : 'SELLOS',
-    value:         rewardReady ? '🎉 PREMIO' : `${currentStamps} / ${program.stampsRequired}`,
-    changeMessage: rewardReady ? '🎉 ¡Premio listo!' : 'Nuevo sello: %@',
-  })
-
-  // secondaryFields: one row below the strip — TITULAR on the left, COMPLETAR on the right.
+  // No primaryField — keeping the strip free of Apple's large-text overlay so both
+  // stamp rows are fully visible. The counter moves to the first secondaryField.
   pass.secondaryFields.push(
+    {
+      key:           'stamps',
+      label:         rewardReady ? 'PREMIO LISTO' : 'SELLOS',
+      value:         rewardReady ? '🎉 ¡PREMIO!' : `${currentStamps} / ${program.stampsRequired}`,
+      changeMessage: rewardReady ? '🎉 ¡Premio listo!' : 'Nuevo sello: %@',
+    },
     { key: 'holder',   label: 'TITULAR',   value: customer.name },
     { key: 'required', label: 'COMPLETAR', value: `${program.stampsRequired} sellos` },
   )
