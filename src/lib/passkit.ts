@@ -22,9 +22,7 @@ function hexToRgbTuple(hex: string): [number, number, number] {
   return [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)]
 }
 
-// Carga un certificado desde base64 (variable de entorno con el contenido)
-// o desde un archivo en disco (desarrollo local).
-// Prioridad: base64 > archivo.
+// Loads a certificate from base64 env var (production/Docker) or from a file (local dev).
 function loadCert(b64Value: string | undefined, filePath: string): Buffer {
   if (b64Value) {
     return Buffer.from(b64Value, 'base64')
@@ -74,7 +72,6 @@ function generateStripPNG(
   function setPixel(px: number, py: number, cr: number, cg: number, cb: number, alpha: number) {
     if (px < 0 || px >= w || py < 0 || py >= h) return
     const idx = (Math.round(py) * w + Math.round(px)) * 4
-    // Mezcla alpha sobre fondo
     const a = alpha / 255
     png.data[idx + 0] = Math.round(bg[0] * (1 - a) + cr * a)
     png.data[idx + 1] = Math.round(bg[1] * (1 - a) + cg * a)
@@ -87,7 +84,6 @@ function generateStripPNG(
     const earned = i < current
     const strokeW = Math.max(1.5, r * 0.13)
 
-    // Bounding box
     const x0 = Math.floor(cx - r - 1)
     const x1 = Math.ceil(cx + r + 1)
     const y0 = Math.floor(cy - r - 1)
@@ -98,11 +94,9 @@ function generateStripPNG(
         const dist = Math.sqrt((px - cx) ** 2 + (py - cy) ** 2)
 
         if (earned) {
-          // Círculo relleno con anti-aliasing
           const aa = Math.max(0, Math.min(1, r - dist + 0.8))
           if (aa > 0) setPixel(px, py, fg[0], fg[1], fg[2], Math.round(aa * 255))
         } else {
-          // Anillo vacío: sólo borde, opacidad 45%
           const inner = r - strokeW
           const outerAA = Math.max(0, Math.min(1, r - dist + 0.8))
           const innerAA = Math.max(0, Math.min(1, dist - inner + 0.8))
@@ -110,7 +104,6 @@ function generateStripPNG(
           if (aa > 0) setPixel(px, py, fg[0], fg[1], fg[2], Math.round(aa * 115))
         }
 
-        // Pequeño punto blanco de brillo para los ganados
         if (earned) {
           const glowCx = cx - r * 0.28
           const glowCy = cy - r * 0.28
@@ -120,6 +113,34 @@ function generateStripPNG(
           if (glowAA > 0) setPixel(px, py, 255, 255, 255, Math.round(glowAA * 140))
         }
       }
+    }
+  }
+
+  return PNG.sync.write(png)
+}
+
+// ─── Generador de icono PNG ───────────────────────────────────────────────────
+//
+// Genera un círculo relleno del color del programa sobre el fondo.
+// Usado para icon.png (29×29 / 58×58) y logo.png (50×50 / 100×100).
+
+function generateCirclePNG(size: number, bgHex: string, fgHex: string): Buffer {
+  const png = new PNG({ width: size, height: size })
+  const bg = hexToRgbTuple(bgHex)
+  const fg = hexToRgbTuple(fgHex)
+  const cx = size / 2
+  const cy = size / 2
+  const r = size * 0.42
+
+  for (let py = 0; py < size; py++) {
+    for (let px = 0; px < size; px++) {
+      const idx = (py * size + px) * 4
+      const dist = Math.sqrt((px - cx) ** 2 + (py - cy) ** 2)
+      const aa = Math.max(0, Math.min(1, r - dist + 0.8))
+      png.data[idx + 0] = Math.round(bg[0] * (1 - aa) + fg[0] * aa)
+      png.data[idx + 1] = Math.round(bg[1] * (1 - aa) + fg[1] * aa)
+      png.data[idx + 2] = Math.round(bg[2] * (1 - aa) + fg[2] * aa)
+      png.data[idx + 3] = 255
     }
   }
 
@@ -137,119 +158,114 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
     ? '🎉 ¡PREMIO LISTO!'
     : `${currentStamps} / ${program.stampsRequired}`
 
-  const passJson = {
-    formatVersion: 1,
-    passTypeIdentifier: process.env.APPLE_PASS_TYPE_IDENTIFIER,
-    serialNumber,
-    teamIdentifier: process.env.APPLE_TEAM_IDENTIFIER,
-    webServiceURL: `${appUrl}/api/passes/apple`,
-    authenticationToken: authToken,
-    organizationName: program.business.name,
-    description: program.name,
-    backgroundColor: hexToRgb(program.backgroundColor),
-    foregroundColor: hexToRgb(program.foregroundColor),
-    labelColor: hexToRgb(program.labelColor),
-    logoText: program.business.name,
-    storeCard: {
-      primaryFields: [
-        {
-          key: 'stamps',
-          label: rewardReady ? 'PREMIO DISPONIBLE' : 'SELLOS',
-          value: stampsLabel,
-          textAlignment: 'PKTextAlignmentCenter',
-        },
-      ],
-      secondaryFields: [
-        {
-          key: 'reward',
-          label: 'PREMIO',
-          value: program.rewardDescription,
-        },
-        {
-          key: 'required',
-          label: 'COMPLETAR',
-          value: `${program.stampsRequired} sellos`,
-        },
-      ],
-      auxiliaryFields: [
-        {
-          key: 'holder',
-          label: 'TITULAR',
-          value: customer.name,
-        },
-      ],
-      backFields: [
-        { key: 'fullName',    label: 'Nombre',           value: customer.name },
-        { key: 'email',       label: 'Email',             value: customer.email },
-        { key: 'programDesc', label: 'Programa',          value: program.description || program.name },
-        { key: 'rewardDetail',label: 'Premio al completar', value: program.rewardDescription },
-        {
-          key: 'terms',
-          label: 'Condiciones',
-          value: `Acumula ${program.stampsRequired} sellos para obtener tu premio. No transferible.`,
-        },
-      ],
-    },
-    barcodes: [
-      {
-        message: serialNumber,
-        format: 'PKBarcodeFormatQR',
-        messageEncoding: 'iso-8859-1',
-        altText: `ID: ${serialNumber.slice(0, 8)}`,
-      },
-    ],
-    barcode: {
-      message: serialNumber,
-      format: 'PKBarcodeFormatQR',
-      messageEncoding: 'iso-8859-1',
-    },
-  }
-
+  // ─── Certificados ──────────────────────────────────────────────────────────
   const wwdr       = loadCert(process.env.APPLE_WWDR_B64,  process.env.APPLE_WWDR_PATH  || './certs/wwdr.pem')
   const signerCert = loadCert(process.env.APPLE_CERT_B64,  process.env.APPLE_CERT_PATH  || './certs/signerCert.pem')
   const signerKey  = loadCert(process.env.APPLE_KEY_B64,   process.env.APPLE_KEY_PATH   || './certs/signerKey.pem')
 
+  const certificates: {
+    wwdr: Buffer
+    signerCert: Buffer
+    signerKey: Buffer
+    signerKeyPassphrase?: string
+  } = { wwdr, signerCert, signerKey }
+  if (process.env.APPLE_KEY_PASSPHRASE) {
+    certificates.signerKeyPassphrase = process.env.APPLE_KEY_PASSPHRASE
+  }
+
+  // ─── Imágenes ──────────────────────────────────────────────────────────────
+  // icon: 29×29 / 58×58 (requerido por Apple Wallet para notificaciones)
+  // logo: 50×50 / 100×100 (esquina superior izquierda del pase)
+  // Si el negocio tiene un logo PNG en /public, se usa; si no, generamos un círculo de color.
+
   let iconBuffer: Buffer
   if (program.stampIconUrl && program.stampIconUrl.startsWith('/')) {
     const iconPath = path.resolve(process.cwd(), 'public', program.stampIconUrl.slice(1))
-    iconBuffer = fs.existsSync(iconPath) ? fs.readFileSync(iconPath) : getDefaultIcon()
+    iconBuffer = fs.existsSync(iconPath)
+      ? fs.readFileSync(iconPath)
+      : generateCirclePNG(29, program.backgroundColor, program.foregroundColor)
   } else {
-    iconBuffer = getDefaultIcon()
+    iconBuffer = generateCirclePNG(29, program.backgroundColor, program.foregroundColor)
   }
 
-  // Strip image: círculos de sellos (en color → ganados, anillo → pendientes)
-  // @1x 320×100 px  /  @2x 640×200 px  (dimensiones estándar storeCard Apple)
+  const icon2xBuffer = generateCirclePNG(58,  program.backgroundColor, program.foregroundColor)
+  const logoBuffer   = generateCirclePNG(50,  program.backgroundColor, program.foregroundColor)
+  const logo2xBuffer = generateCirclePNG(100, program.backgroundColor, program.foregroundColor)
+
   const stripBuffer   = generateStripPNG(currentStamps, program.stampsRequired, program.backgroundColor, program.foregroundColor, 320, 100)
   const strip2xBuffer = generateStripPNG(currentStamps, program.stampsRequired, program.backgroundColor, program.foregroundColor, 640, 200)
 
-  const pass = await PKPass.from(
+  // ─── Construcción del pase ─────────────────────────────────────────────────
+  // PKPass v3.x API: new PKPass(buffers, certificates, overridableProps)
+  // pass.json se genera internamente; NO incluirlo en buffers.
+
+  const pass = new PKPass(
     {
-      model: {
-        'pass.json':    Buffer.from(JSON.stringify(passJson)),
-        'icon.png':     iconBuffer,
-        'icon@2x.png':  iconBuffer,
-        'logo.png':     iconBuffer,
-        'logo@2x.png':  iconBuffer,
-        'strip.png':    stripBuffer,
-        'strip@2x.png': strip2xBuffer,
-      } as any,
-      certificates: {
-        wwdr,
-        signerCert,
-        signerKey,
-        signerKeyPassphrase: process.env.APPLE_KEY_PASSPHRASE || undefined,
-      },
+      'icon.png':     iconBuffer,
+      'icon@2x.png':  icon2xBuffer,
+      'logo.png':     logoBuffer,
+      'logo@2x.png':  logo2xBuffer,
+      'strip.png':    stripBuffer,
+      'strip@2x.png': strip2xBuffer,
     },
-    {}
+    certificates,
+    {
+      formatVersion:          1,
+      passTypeIdentifier:     process.env.APPLE_PASS_TYPE_IDENTIFIER,
+      serialNumber,
+      teamIdentifier:         process.env.APPLE_TEAM_IDENTIFIER,
+      webServiceURL:          `${appUrl}/api/passes/apple`,
+      authenticationToken:    authToken,
+      organizationName:       program.business.name,
+      description:            program.name,
+      backgroundColor:        hexToRgb(program.backgroundColor),
+      foregroundColor:        hexToRgb(program.foregroundColor),
+      labelColor:             hexToRgb(program.labelColor),
+      logoText:               program.business.name,
+    } as any,
   )
+
+  // Tipo de pase — obligatorio antes de agregar campos
+  pass.type = 'storeCard'
+
+  // Campos principales
+  pass.primaryFields.push({
+    key:           'stamps',
+    label:         rewardReady ? 'PREMIO DISPONIBLE' : 'SELLOS',
+    value:         stampsLabel,
+    textAlignment: 'PKTextAlignmentCenter',
+  })
+
+  pass.secondaryFields.push(
+    { key: 'reward',   label: 'PREMIO',     value: program.rewardDescription },
+    { key: 'required', label: 'COMPLETAR',  value: `${program.stampsRequired} sellos` },
+  )
+
+  pass.auxiliaryFields.push({
+    key:   'holder',
+    label: 'TITULAR',
+    value: customer.name,
+  })
+
+  pass.backFields.push(
+    { key: 'fullName',     label: 'Nombre',              value: customer.name },
+    { key: 'email',        label: 'Email',                value: customer.email },
+    { key: 'programDesc',  label: 'Programa',             value: program.description || program.name },
+    { key: 'rewardDetail', label: 'Premio al completar',  value: program.rewardDescription },
+    {
+      key:   'terms',
+      label: 'Condiciones',
+      value: `Acumula ${program.stampsRequired} sellos para obtener tu premio. No transferible.`,
+    },
+  )
+
+  // Código QR — solo QR para tarjeta de fidelización
+  pass.setBarcodes({
+    format:          'PKBarcodeFormatQR',
+    message:         serialNumber,
+    messageEncoding: 'iso-8859-1',
+    altText:         `ID: ${serialNumber.slice(0, 8)}`,
+  })
 
   return pass.getAsBuffer()
-}
-
-// PNG 1×1 blanco — fallback cuando no hay icono configurado
-function getDefaultIcon(): Buffer {
-  return Buffer.from(
-    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI6QAAAABJRU5ErkJggg==',
-    'base64'
-  )
 }
