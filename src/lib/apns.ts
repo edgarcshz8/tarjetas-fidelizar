@@ -95,14 +95,16 @@ export async function pushPassUpdate(serialNumber: string): Promise<void> {
   // Topic MUST be exactly the passTypeIdentifier — no ".voip" or any suffix
   notification.topic    = ctx.passTypeId
   notification.priority = 10
-  // rawPayload overrides the entire body; using `payload={}` leaves the body empty
-  // because node-apn only serializes it when there are actual keys — APNs rejects
-  // an empty body with 400 PayloadEmpty. rawPayload={} produces the required "{}".
-  ;(notification as any).rawPayload = {}
+  // @parse/node-apn skips writing the HTTP body entirely when compile() returns "{}":
+  //   client.js: if (notification.body !== '{}') { request.write(notification.body) }
+  // Apple receives an empty body and responds 400 PayloadEmpty.
+  // rawPayload = { aps: {} } compiles to '{"aps":{}}', passes the check, and is a
+  // valid Apple Wallet pass-update payload (empty aps dict is accepted by APNs).
+  ;(notification as any).rawPayload = { aps: {} }
   // apns-push-type: background — required by iOS 13+ for Wallet pass update signals
   ;(notification as any).pushType = 'background'
 
-  console.log('[APNS] body', JSON.stringify((notification as any).rawPayload))
+  console.log('[APNS] body', (notification as any).compile())
 
   for (const device of devices) {
     try {
