@@ -48,19 +48,41 @@ export async function POST(req: NextRequest) {
   const user = await prisma.user.findUnique({ where: { id: session.user.id } })
   if (!user) return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 })
 
-  const newStamps = passRecord.currentStamps + 1
-  const rewardReady = newStamps >= passRecord.program.stampsRequired
-
-  // Actualizar el pase
-  const updatedPass = await prisma.customerPass.update({
-    where: { id: passRecord.id },
-    data: {
-      currentStamps: rewardReady ? passRecord.currentStamps + 1 : newStamps,
-      rewardReady,
-      applePassUpdatedAt: new Date(),
-    },
-    include: { customer: true, program: { include: { business: true } } },
+  // Cooldown: evitar doble-sello si el mismo QR se escanea en < 10 segundos
+  const lastStamp = await prisma.stamp.findFirst({
+    where: { passId: passRecord.id },
+    orderBy: { createdAt: 'desc' },
   })
+  if (lastStamp && Date.now() - lastStamp.createdAt.getTime() < 10_000) {
+    return NextResponse.json(
+      { error: 'Este pase ya fue sellado hace menos de 10 segundos.' },
+      { status: 429 }
+    )
+  }
+
+  // Incremento atómico: evita race condition cuando dos dispositivos escanean a la vez
+  const updatedPass = await prisma.$transaction(async tx => {
+    const pass = await tx.customerPass.update({
+      where: { id: passRecord.id },
+      data: {
+        currentStamps: { increment: 1 },
+        applePassUpdatedAt: new Date(),
+      },
+      include: { customer: true, program: { include: { business: true } } },
+    })
+
+    const shouldReward = pass.currentStamps >= pass.program.stampsRequired && !pass.rewardReady
+    if (shouldReward) {
+      return tx.customerPass.update({
+        where: { id: passRecord.id },
+        data: { rewardReady: true },
+        include: { customer: true, program: { include: { business: true } } },
+      })
+    }
+    return pass
+  })
+
+  const rewardReady = updatedPass.rewardReady
 
   // Registrar el sello en el historial
   await prisma.stamp.create({
