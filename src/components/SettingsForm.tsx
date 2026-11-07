@@ -625,7 +625,7 @@ function WalletStampStrip({
   stampEmoji: string
   rewardReady: boolean
 }) {
-  const n         = Math.min(total, 10)
+  const n         = total
   const singleRow = n <= 5
   const perRow1   = singleRow ? n : Math.ceil(n / 2)
   const perRow2   = singleRow ? 0 : Math.floor(n / 2)
@@ -748,8 +748,7 @@ function GoogleWalletCard({
   currentStamps: number
 }) {
   const rewardReady = currentStamps >= stampsRequired
-  const n           = Math.min(stampsRequired, 10)
-  const extraStamps = stampsRequired > 10 ? ` +${stampsRequired - 10}` : ''
+  const n           = stampsRequired
 
   return (
     <div
@@ -821,11 +820,6 @@ function GoogleWalletCard({
                 {stampEmoji}
               </div>
             ))}
-            {extraStamps && (
-              <div style={{ color: labelColor, fontSize: 10, alignSelf: 'center', marginLeft: 2 }}>
-                {extraStamps}
-              </div>
-            )}
           </div>
         )}
       </div>

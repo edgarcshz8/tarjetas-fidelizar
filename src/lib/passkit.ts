@@ -104,7 +104,7 @@ export function generateStripPNG(
     png.data[i * 4 + 3] = 255
   }
 
-  const n         = Math.min(total, 10)
+  const n         = total
   const singleRow = n <= 5
   const perRow1   = singleRow ? n : Math.ceil(n / 2)
   const perRow2   = singleRow ? 0 : Math.floor(n / 2)
