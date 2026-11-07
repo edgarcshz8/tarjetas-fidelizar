@@ -105,8 +105,8 @@ function generateStripPNG(
   }
 
   const n = Math.min(total, 10)
-  const r = Math.min(h * 0.30, (w * 0.92) / (n * 2.4))
-  const gap = r * 0.40
+  const r = Math.min(h * 0.42, (w * 0.97) / (n * 2.05))
+  const gap = r * 0.05
   const totalW = n * 2 * r + (n - 1) * gap
   const startX = (w - totalW) / 2 + r
   // Centered at 27% from top — Apple renders the primaryField text in the lower ~55%.
