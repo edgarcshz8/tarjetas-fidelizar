@@ -38,11 +38,15 @@ export async function GET(
     return new Response(null, { status: 401 })
   }
 
-  // Respect If-Modified-Since — return 304 if pass has not changed
+  // Respect If-Modified-Since — compare at second precision.
+  // HTTP dates have no sub-second resolution; DB timestamps do. Without truncation,
+  // a DB value like 02:01:58.123 is always "newer" than the HTTP date 02:01:58,
+  // causing the server to always return the full pass instead of 304.
   const ifModSince = req.headers.get('if-modified-since')
   if (ifModSince) {
-    const since = new Date(ifModSince)
-    if (passRecord.applePassUpdatedAt <= since) {
+    const updatedSec = Math.floor(passRecord.applePassUpdatedAt.getTime() / 1000)
+    const sinceSec   = Math.floor(new Date(ifModSince).getTime() / 1000)
+    if (updatedSec <= sinceSec) {
       console.log(`[Apple v1/passes] 304 not modified serial=${params.serial}`)
       return new Response(null, { status: 304 })
     }
@@ -52,13 +56,16 @@ export async function GET(
     const passBuffer = await generateApplePass(passRecord as any)
     console.log(`[Apple v1/passes] 200 serial=${params.serial} stamps=${passRecord.currentStamps}/${passRecord.program.stampsRequired}`)
 
+    // Truncate Last-Modified to second precision so future If-Modified-Since comparisons are consistent
+    const lastModifiedDate = new Date(Math.floor(passRecord.applePassUpdatedAt.getTime() / 1000) * 1000)
+
     return new Response(new Uint8Array(passBuffer), {
       status: 200,
       headers: {
-        'Content-Type':        'application/vnd.apple.pkpass',
-        'Content-Length':      String(passBuffer.length),
-        'Last-Modified':       passRecord.applePassUpdatedAt.toUTCString(),
-        'Cache-Control':       'no-store, no-transform',
+        'Content-Type':   'application/vnd.apple.pkpass',
+        'Content-Length': String(passBuffer.length),
+        'Last-Modified':  lastModifiedDate.toUTCString(),
+        'Cache-Control':  'no-store, no-transform',
       },
     })
   } catch (err) {
