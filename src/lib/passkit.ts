@@ -62,12 +62,12 @@ function generateStripPNG(
   }
 
   const n = Math.min(total, 10)
-  const r = Math.min(h * 0.26, (w * 0.9) / (n * 2.6))
+  const r = Math.min(h * 0.28, (w * 0.88) / (n * 2.6))
   const gap = r * 0.55
   const totalW = n * 2 * r + (n - 1) * gap
   const startX = (w - totalW) / 2 + r
-  // Círculos en el tercio superior para dejar espacio al texto
-  const cy = h * 0.38
+  // Circles centered at 42% from top — well above the primaryField text area at the bottom
+  const cy = h * 0.42
 
   function setPixel(px: number, py: number, cr: number, cg: number, cb: number, alpha: number) {
     if (px < 0 || px >= w || py < 0 || py >= h) return
@@ -154,7 +154,9 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
   const rawAppUrl = process.env.APP_URL || 'http://localhost:3000'
   const appUrl = /^https?:\/\//.test(rawAppUrl) ? rawAppUrl : `https://${rawAppUrl}`
 
-  const stampsLabel = rewardReady
+  // primaryField shows only a status label — no number so it doesn't overlap the strip circles.
+  // secondaryField carries the actual count with changeMessage so iOS shows an update notification.
+  const stampCountValue = rewardReady
     ? '🎉 ¡PREMIO LISTO!'
     : `${currentStamps} / ${program.stampsRequired}`
 
@@ -192,8 +194,12 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
   const logoBuffer   = generateCirclePNG(50,  program.backgroundColor, program.foregroundColor)
   const logo2xBuffer = generateCirclePNG(100, program.backgroundColor, program.foregroundColor)
 
-  const stripBuffer   = generateStripPNG(currentStamps, program.stampsRequired, program.backgroundColor, program.foregroundColor, 320, 100)
-  const strip2xBuffer = generateStripPNG(currentStamps, program.stampsRequired, program.backgroundColor, program.foregroundColor, 640, 200)
+  // Strip @1x 375×144 / @2x 750×288 / @3x 1125×432
+  // Taller than the old 320×100 so the primaryField text (rendered at the bottom)
+  // doesn't overlap the circles, which sit in the upper portion of the strip.
+  const stripBuffer   = generateStripPNG(currentStamps, program.stampsRequired, program.backgroundColor, program.foregroundColor,  375, 144)
+  const strip2xBuffer = generateStripPNG(currentStamps, program.stampsRequired, program.backgroundColor, program.foregroundColor,  750, 288)
+  const strip3xBuffer = generateStripPNG(currentStamps, program.stampsRequired, program.backgroundColor, program.foregroundColor, 1125, 432)
 
   // ─── Construcción del pase ─────────────────────────────────────────────────
   // PKPass v3.x API: new PKPass(buffers, certificates, overridableProps)
@@ -207,6 +213,7 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
       'logo@2x.png':  logo2xBuffer,
       'strip.png':    stripBuffer,
       'strip@2x.png': strip2xBuffer,
+      'strip@3x.png': strip3xBuffer,
     },
     certificates,
     {
@@ -228,17 +235,26 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
   // Tipo de pase — obligatorio antes de agregar campos
   pass.type = 'storeCard'
 
-  // Campos principales
+  // primaryField: only a status label painted at the bottom of the strip area.
+  // Keeping it short prevents overlap with the circle graphics above it.
   pass.primaryFields.push({
-    key:           'stamps',
-    label:         rewardReady ? 'PREMIO DISPONIBLE' : 'SELLOS',
-    value:         stampsLabel,
+    key:           'status',
+    label:         program.name,
+    value:         rewardReady ? '🎉 PREMIO' : program.business.name,
     textAlignment: 'PKTextAlignmentCenter',
   })
 
+  // secondaryFields: stamp count with changeMessage so iOS shows "pass updated" notification.
   pass.secondaryFields.push(
-    { key: 'reward',   label: 'PREMIO',     value: program.rewardDescription },
-    { key: 'required', label: 'COMPLETAR',  value: `${program.stampsRequired} sellos` },
+    {
+      key:           'stamps',
+      label:         rewardReady ? 'PREMIO DISPONIBLE' : 'SELLOS',
+      value:         stampCountValue,
+      changeMessage: rewardReady
+        ? '🎉 ¡Premio listo! Ahora tienes %@'
+        : `Ahora tienes %@ sellos`,
+    },
+    { key: 'reward', label: 'PREMIO', value: program.rewardDescription },
   )
 
   pass.auxiliaryFields.push({
