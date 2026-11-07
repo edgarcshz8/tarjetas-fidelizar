@@ -25,7 +25,10 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.apple.pkpass',
-        'Content-Disposition': `attachment; filename="tarjeta-fidelizacion.pkpass"`,
+        // 'inline' lets iOS Safari intercept the MIME type and open Wallet directly.
+        // 'attachment' triggers a file-save dialog which iOS cannot handle → "Safari cannot download this file".
+        'Content-Disposition': `inline; filename="tarjeta-fidelizacion.pkpass"`,
+        'Cache-Control': 'no-store',
       },
     })
   } catch (err: any) {
