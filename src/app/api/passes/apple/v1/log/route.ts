@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 // POST /v1/log
 // Apple Wallet sends diagnostic messages here — log everything for debugging.

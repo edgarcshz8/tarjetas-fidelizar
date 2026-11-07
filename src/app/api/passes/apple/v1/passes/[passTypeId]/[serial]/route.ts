@@ -3,6 +3,9 @@ import { prisma } from '@/lib/prisma'
 import { generateApplePass } from '@/lib/passkit'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
+const PASS_TYPE_ID = process.env.APPLE_PASS_TYPE_IDENTIFIER ?? 'pass.com.edgarcamposh.tarjetas-fidelizar'
 
 // GET /v1/passes/{passTypeIdentifier}/{serialNumber}
 // Called by iOS Wallet after receiving an APNs push to fetch the updated pass.
@@ -13,7 +16,12 @@ export async function GET(
   const authHeader = req.headers.get('authorization')
   const token = authHeader?.replace('ApplePass ', '').trim()
 
-  console.log(`[Apple v1/passes] GET ${params.serial} auth=${token?.slice(0, 8)}…`)
+  console.log(`[Apple v1/passes] GET ${params.serial} passType=${params.passTypeId} auth=${token?.slice(0, 8)}…`)
+
+  if (params.passTypeId !== PASS_TYPE_ID) {
+    console.log(`[Apple v1/passes] 400 unknown passTypeId=${params.passTypeId}`)
+    return new Response(null, { status: 400 })
+  }
 
   const passRecord = await prisma.customerPass.findUnique({
     where: { serialNumber: params.serial },
