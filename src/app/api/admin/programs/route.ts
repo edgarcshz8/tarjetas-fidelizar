@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { upsertLoyaltyClass, updateLoyaltyObject, pushGoogleWalletMessage } from '@/lib/google-wallet'
+import { pushPassUpdate } from '@/lib/apns'
 
 export const runtime = 'nodejs'
 
@@ -53,10 +55,16 @@ export async function POST(req: NextRequest) {
       where: { id: data.id },
       data: { ...data, id: undefined },
     })
+
+    // Propagar cambios a todos los pases existentes en background
+    syncWalletPasses(program.id).catch(err =>
+      console.error('[programs] syncWalletPasses error:', err)
+    )
+
     return NextResponse.json({ program })
   }
 
-  // Crear nuevo programa
+  // Crear nuevo programa (no hay pases existentes que actualizar)
   const program = await prisma.loyaltyProgram.create({
     data: {
       businessId: session.user.businessId,
@@ -74,4 +82,55 @@ export async function POST(req: NextRequest) {
   })
 
   return NextResponse.json({ program }, { status: 201 })
+}
+
+// Actualiza todos los pases activos del programa en Apple Wallet y Google Wallet.
+// Se ejecuta en background (fire-and-forget) para no bloquear la respuesta al admin.
+async function syncWalletPasses(programId: string): Promise<void> {
+  const program = await prisma.loyaltyProgram.findUnique({
+    where: { id: programId },
+    include: { business: true },
+  })
+  if (!program) return
+
+  // Google Wallet: actualizar la clase (colores, logo, nombre del programa)
+  await upsertLoyaltyClass(program).catch(err =>
+    console.error('[programs] upsertLoyaltyClass:', err)
+  )
+
+  const passes = await prisma.customerPass.findMany({
+    where: { programId },
+    include: { customer: true },
+  })
+  if (passes.length === 0) return
+
+  // Marcar todos los pases como modificados para que Apple Wallet los re-descargue
+  await prisma.customerPass.updateMany({
+    where: { programId },
+    data: { applePassUpdatedAt: new Date() },
+  })
+
+  for (const pass of passes) {
+    const passData = { ...pass, program, customer: pass.customer }
+
+    if (pass.googleObjectId) {
+      await updateLoyaltyObject(passData as any).catch(err =>
+        console.error(`[programs] updateLoyaltyObject serial=${pass.serialNumber}:`, err)
+      )
+      await pushGoogleWalletMessage(
+        pass.googleObjectId,
+        pass.currentStamps,
+        program.stampsRequired,
+        pass.rewardReady,
+      ).catch(err =>
+        console.error(`[programs] pushGoogleWalletMessage serial=${pass.serialNumber}:`, err)
+      )
+    }
+
+    await pushPassUpdate(pass.serialNumber).catch(err =>
+      console.error(`[programs] APNs push serial=${pass.serialNumber}:`, err)
+    )
+  }
+
+  console.log(`[programs] syncWalletPasses done — ${passes.length} pase(s) actualizados`)
 }
