@@ -106,6 +106,7 @@ export async function createLoyaltyObject(passData: GooglePassData): Promise<str
   const loyaltyObject = buildLoyaltyObjectPayload({
     objectId,
     classId,
+    serialNumber,
     customer,
     currentStamps,
     stampsRequired: program.stampsRequired,
@@ -127,12 +128,13 @@ export async function updateLoyaltyObject(passData: GooglePassData): Promise<voi
 
   const auth = getGoogleAuth()
   const client = await auth.getClient()
-  const { program, customer, googleObjectId, currentStamps, rewardReady } = passData
+  const { program, customer, serialNumber, googleObjectId, currentStamps, rewardReady } = passData
   const classId = buildLoyaltyClassId(program.id)
 
   const payload = buildLoyaltyObjectPayload({
     objectId: googleObjectId,
     classId,
+    serialNumber,
     customer,
     currentStamps,
     stampsRequired: program.stampsRequired,
@@ -143,24 +145,35 @@ export async function updateLoyaltyObject(passData: GooglePassData): Promise<voi
   await (client as any).request({
     url: `${GOOGLE_WALLET_API}/loyaltyObject/${encodeURIComponent(googleObjectId)}`,
     method: 'PATCH',
-    data: { loyaltyPoints: payload.loyaltyPoints, textModulesData: payload.textModulesData },
+    data: {
+      loyaltyPoints:  payload.loyaltyPoints,
+      textModulesData: payload.textModulesData,
+      heroImage:      payload.heroImage,
+    },
   })
 }
 
 function buildLoyaltyObjectPayload(params: {
   objectId: string
   classId: string
+  serialNumber: string
   customer: Customer
   currentStamps: number
   stampsRequired: number
   rewardDescription: string
   rewardReady: boolean
 }) {
-  const { objectId, classId, customer, currentStamps, stampsRequired, rewardDescription, rewardReady } = params
+  const { objectId, classId, serialNumber, customer, currentStamps, stampsRequired, rewardDescription, rewardReady } = params
 
-  // Progreso visual con círculos Unicode:
-  // ●●●○○○○○○○  →  3 de 10 sellos ganados
-  const stampVisual = '●'.repeat(currentStamps) + '○'.repeat(Math.max(0, stampsRequired - currentStamps))
+  const rawAppUrl = process.env.APP_URL || 'http://localhost:3000'
+  const appUrl    = /^https?:\/\//.test(rawAppUrl) ? rawAppUrl : `https://${rawAppUrl}`
+
+  // ☕ for earned stamps, ○ for pending — matches the coffee-cup theme
+  const stampVisual = '☕'.repeat(currentStamps) + '○'.repeat(Math.max(0, stampsRequired - currentStamps))
+
+  // heroImage: 1032×336 PNG with the same 2-row coffee-cup strip as Apple Wallet.
+  // ?v= busts the Google CDN cache each time the stamp count changes.
+  const heroImageUri = `${appUrl}/api/passes/google/strip/${serialNumber}?v=${currentStamps}`
 
   return {
     id: objectId,
@@ -172,6 +185,12 @@ function buildLoyaltyObjectPayload(params: {
       label: rewardReady ? '🎉 PREMIO LISTO' : 'SELLOS',
       balance: {
         string: rewardReady ? '¡Reclama tu premio!' : stampVisual,
+      },
+    },
+    heroImage: {
+      sourceUri: { uri: heroImageUri },
+      contentDescription: {
+        defaultValue: { language: 'es', value: 'Progreso de sellos' },
       },
     },
     textModulesData: [

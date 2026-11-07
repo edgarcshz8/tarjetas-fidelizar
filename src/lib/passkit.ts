@@ -84,7 +84,7 @@ function inCoffeeCup(px: number, py: number, cx: number, cy_c: number, R: number
   return false
 }
 
-function generateStripPNG(
+export function generateStripPNG(
   current: number,
   total: number,
   bgHex: string,
