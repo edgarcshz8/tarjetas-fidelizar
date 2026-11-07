@@ -54,12 +54,35 @@ async function loadLogoBuffer(
 
 // ─── Generador de strip PNG ──────────────────────────────────────────────────
 //
-// Dibuja N círculos en fila en el TERCIO SUPERIOR del strip.
-// Apple Wallet renderiza el texto del primaryField en la parte INFERIOR del strip,
-// por lo que los círculos deben estar en la parte superior para no solaparse.
+// Dibuja N sellos en fila en el TERCIO SUPERIOR del strip.
+// Apple Wallet renderiza el texto del primaryField en la parte INFERIOR del strip.
 //
-//   · Ganados    → círculo relleno en foregroundColor con brillo
-//   · Pendientes → anillo vacío semi-transparente
+//   · Ganados    → círculo relleno (foregroundColor) con silueta de taza en bgColor
+//   · Pendientes → anillo vacío semi-transparente con silueta de taza muy tenue
+
+// Returns true if (px, py) falls inside the coffee-cup silhouette centered at
+// (cx, cy_c) with stamp radius R. The cup is composed of:
+//   – trapezoid body (wider at top, narrower at bottom)
+//   – elliptical ring handle on the right side
+function inCoffeeCup(px: number, py: number, cx: number, cy_c: number, R: number): boolean {
+  // ── Cup body ──
+  const topY = cy_c - R * 0.42
+  const botY = cy_c + R * 0.54
+  if (py >= topY && py <= botY) {
+    const t = (py - topY) / (botY - topY)
+    const halfW = R * (0.52 - t * 0.15) // 0.52R at top → 0.37R at bottom
+    if (Math.abs(px - cx) <= halfW) return true
+  }
+
+  // ── Handle (elliptical ring, right side only) ──
+  const hcx = cx + R * 0.65
+  const hcy = cy_c + R * 0.06
+  const outerD = ((px - hcx) / (R * 0.21)) ** 2 + ((py - hcy) / (R * 0.26)) ** 2
+  const innerD = ((px - hcx) / (R * 0.09)) ** 2 + ((py - hcy) / (R * 0.13)) ** 2
+  if (outerD <= 1.0 && innerD >= 1.0 && px >= cx + R * 0.37) return true
+
+  return false
+}
 
 function generateStripPNG(
   current: number,
@@ -86,8 +109,7 @@ function generateStripPNG(
   const gap = r * 0.55
   const totalW = n * 2 * r + (n - 1) * gap
   const startX = (w - totalW) / 2 + r
-  // Circles centered at 27% from top — Apple renders the primaryField text in the lower
-  // ~55% of the strip area, so this keeps circles clearly in the upper portion.
+  // Centered at 27% from top — Apple renders the primaryField text in the lower ~55%.
   const cy = h * 0.27
 
   function setPixel(px: number, py: number, cr: number, cg: number, cb: number, alpha: number) {
@@ -105,33 +127,49 @@ function generateStripPNG(
     const earned = i < current
     const strokeW = Math.max(1.5, r * 0.13)
 
+    // Bounding box — extend right to cover the handle
     const x0 = Math.floor(cx - r - 1)
-    const x1 = Math.ceil(cx + r + 1)
+    const x1 = Math.ceil(cx + r + r * 0.2 + 1)
     const y0 = Math.floor(cy - r - 1)
     const y1 = Math.ceil(cy + r + 1)
 
     for (let py = y0; py <= y1; py++) {
       for (let px = x0; px <= x1; px++) {
         const dist = Math.sqrt((px - cx) ** 2 + (py - cy) ** 2)
+        const inCircle = dist <= r + 1
+        const circleAA = Math.max(0, Math.min(1, r - dist + 0.8))
+        const inCup = inCoffeeCup(px, py, cx, cy, r)
 
         if (earned) {
-          const aa = Math.max(0, Math.min(1, r - dist + 0.8))
-          if (aa > 0) setPixel(px, py, fg[0], fg[1], fg[2], Math.round(aa * 255))
+          if (circleAA > 0) {
+            if (inCup) {
+              // Cup silhouette carved from the filled circle in background color
+              setPixel(px, py, bg[0], bg[1], bg[2], Math.round(circleAA * 195))
+            } else {
+              // Circle fill in foreground color
+              setPixel(px, py, fg[0], fg[1], fg[2], Math.round(circleAA * 255))
+            }
+          }
+          // Subtle highlight on top-left (outside the cup carve-out)
+          if (inCircle && !inCup) {
+            const glowCx = cx - r * 0.28
+            const glowCy = cy - r * 0.28
+            const glowDist = Math.sqrt((px - glowCx) ** 2 + (py - glowCy) ** 2)
+            const glowAA = Math.max(0, Math.min(1, r * 0.22 - glowDist + 0.5))
+            if (glowAA > 0) setPixel(px, py, 255, 255, 255, Math.round(glowAA * 100))
+          }
         } else {
+          // Unearned: ring outline
           const inner = r - strokeW
           const outerAA = Math.max(0, Math.min(1, r - dist + 0.8))
           const innerAA = Math.max(0, Math.min(1, dist - inner + 0.8))
-          const aa = Math.min(outerAA, innerAA)
-          if (aa > 0) setPixel(px, py, fg[0], fg[1], fg[2], Math.round(aa * 115))
-        }
+          const ringAA = Math.min(outerAA, innerAA)
+          if (ringAA > 0) setPixel(px, py, fg[0], fg[1], fg[2], Math.round(ringAA * 115))
 
-        if (earned) {
-          const glowCx = cx - r * 0.28
-          const glowCy = cy - r * 0.28
-          const glowDist = Math.sqrt((px - glowCx) ** 2 + (py - glowCy) ** 2)
-          const glowR = r * 0.22
-          const glowAA = Math.max(0, Math.min(1, glowR - glowDist + 0.5))
-          if (glowAA > 0) setPixel(px, py, 255, 255, 255, Math.round(glowAA * 140))
+          // Faint cup silhouette inside the ring for unearned stamps
+          if (inCircle && inCup && dist < inner) {
+            setPixel(px, py, fg[0], fg[1], fg[2], 28)
+          }
         }
       }
     }
