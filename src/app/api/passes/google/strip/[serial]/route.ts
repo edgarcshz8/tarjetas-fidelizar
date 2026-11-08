@@ -19,7 +19,7 @@ export async function GET(
 
   if (!passRecord) return new Response(null, { status: 404 })
 
-  const buffer = generateStripPNG(
+  const buffer = await generateStripPNG(
     passRecord.currentStamps,
     passRecord.program.stampsRequired,
     passRecord.program.backgroundColor,

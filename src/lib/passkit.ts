@@ -2,45 +2,8 @@ import { PKPass } from 'passkit-generator'
 import fs from 'fs'
 import path from 'path'
 import { PNG } from 'pngjs'
-import { createCanvas, GlobalFonts } from '@napi-rs/canvas'
+import { createCanvas, loadImage } from '@napi-rs/canvas'
 import { LoyaltyProgram, CustomerPass, Customer } from '@prisma/client'
-
-// Emoji fonts are initialized once per process, lazily on first strip render.
-// Two strategies run together:
-//   1. registerFromPath → explicit file (best for Linux NotoColorEmoji / CBDT format)
-//   2. enableSystemFonts → DirectWrite/fontconfig scan (required for Windows COLR emoji)
-let _emojiFontsInit = false
-function ensureEmojiFonts(): void {
-  if (_emojiFontsInit) return
-  _emojiFontsInit = true
-
-  // Strategy 1: explicit file registration
-  const candidates = [
-    path.join(process.env.SystemRoot ?? 'C:\\Windows', 'Fonts', 'seguiemj.ttf'),
-    '/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf',
-    '/usr/share/fonts/noto-color-emoji/NotoColorEmoji.ttf',
-    '/usr/share/fonts/google-noto-emoji/NotoColorEmoji.ttf',
-  ]
-  for (const p of candidates) {
-    if (fs.existsSync(p)) {
-      try {
-        const ok = GlobalFonts.registerFromPath(p, 'PassEmoji')
-        console.log(`[passkit] emoji font registerFromPath=${ok} path=${p}`)
-      } catch (e) {
-        console.error('[passkit] emoji registerFromPath error:', e)
-      }
-      break
-    }
-  }
-
-  // Strategy 2: system font scan (Windows DirectWrite / Linux fontconfig)
-  try {
-    ;(GlobalFonts as any).enableSystemFonts()
-    console.log('[passkit] enableSystemFonts done')
-  } catch (e) {
-    console.error('[passkit] enableSystemFonts error:', e)
-  }
-}
 
 export type PassData = CustomerPass & {
   customer: Customer
@@ -90,6 +53,47 @@ async function loadLogoBuffer(
   return generateCirclePNG(fallbackSize, bgHex, fgHex)
 }
 
+// ─── Twemoji emoji image loader ──────────────────────────────────────────────
+//
+// Converts an emoji string to its Twemoji CDN PNG and caches it.
+// This completely bypasses font rendering — no font files needed.
+
+type LoadedImage = Awaited<ReturnType<typeof loadImage>>
+const _emojiCache = new Map<string, LoadedImage | null>()
+
+function emojiToTwemojiCodepoint(emoji: string): string {
+  // Convert emoji to its Unicode codepoints in the format Twemoji uses.
+  // Uses ZWJ sequences as-is, strips VS16 (0xFE0F) which Twemoji omits.
+  const codepoints = [...emoji]
+    .map(c => c.codePointAt(0)!)
+    .filter(cp => cp !== 0xFE0F)
+  return codepoints.map(cp => cp.toString(16)).join('-')
+}
+
+async function fetchEmojiImage(emoji: string): Promise<LoadedImage | null> {
+  if (_emojiCache.has(emoji)) return _emojiCache.get(emoji)!
+
+  const cp = emojiToTwemojiCodepoint(emoji)
+  const url = `https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/${cp}.png`
+
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) })
+    if (!res.ok) {
+      console.warn(`[passkit] twemoji fetch ${res.status} for ${emoji} (${cp})`)
+      _emojiCache.set(emoji, null)
+      return null
+    }
+    const buf = Buffer.from(await res.arrayBuffer())
+    const img = await loadImage(buf)
+    _emojiCache.set(emoji, img)
+    return img
+  } catch (e) {
+    console.error('[passkit] twemoji fetch error:', e)
+    _emojiCache.set(emoji, null)
+    return null
+  }
+}
+
 // ─── Generador de strip PNG ──────────────────────────────────────────────────
 //
 // Dibuja N sellos (círculo relleno + emoji) en 1 o 2 filas.
@@ -101,7 +105,7 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`
 }
 
-export function generateStripPNG(
+export async function generateStripPNG(
   current: number,
   total: number,
   bgHex: string,
@@ -109,8 +113,9 @@ export function generateStripPNG(
   w: number,
   h: number,
   stampEmoji: string = '⭐',
-): Buffer {
-  ensureEmojiFonts()
+): Promise<Buffer> {
+  // Pre-fetch the emoji image before drawing
+  const emojiImg = await fetchEmojiImage(stampEmoji)
 
   const canvas = createCanvas(w, h)
   const ctx = canvas.getContext('2d')
@@ -130,10 +135,9 @@ export function generateStripPNG(
   const cy1 = singleRow ? h * 0.50 : h * 0.28
   const cy2 = h * 0.72
 
-  const emojiSize    = Math.round(r * 1.3)
-  const ringColor    = hexToRgba(fgHex, 0.45)
-  const ringWidth    = Math.max(1.5, r * 0.13)
-  const emojiFont    = `${emojiSize}px PassEmoji, "Segoe UI Emoji", "Noto Color Emoji", "Apple Color Emoji", sans-serif`
+  const emojiSize = Math.round(r * 1.3)
+  const ringColor = hexToRgba(fgHex, 0.45)
+  const ringWidth = Math.max(1.5, r * 0.13)
 
   function drawStamp(cx: number, cy: number, earned: boolean) {
     ctx.save()
@@ -152,11 +156,12 @@ export function generateStripPNG(
 
     // Clip emoji to circle bounds
     ctx.clip()
-    ctx.font = emojiFont
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.globalAlpha = earned ? 1.0 : 0.40
-    ctx.fillText(stampEmoji, cx, cy)
+
+    if (emojiImg) {
+      ctx.globalAlpha = earned ? 1.0 : 0.40
+      const half = emojiSize / 2
+      ctx.drawImage(emojiImg, cx - half, cy - half, emojiSize, emojiSize)
+    }
 
     ctx.restore()
   }
@@ -186,13 +191,13 @@ function generateCirclePNG(size: number, bgHex: string, fgHex: string): Buffer {
   const fg = hexToRgbTuple(fgHex)
   const cx = size / 2
   const cy = size / 2
-  const r = size * 0.42
+  const rr = size * 0.42
 
   for (let py = 0; py < size; py++) {
     for (let px = 0; px < size; px++) {
       const idx = (py * size + px) * 4
       const dist = Math.sqrt((px - cx) ** 2 + (py - cy) ** 2)
-      const aa = Math.max(0, Math.min(1, r - dist + 0.8))
+      const aa = Math.max(0, Math.min(1, rr - dist + 0.8))
       png.data[idx + 0] = Math.round(bg[0] * (1 - aa) + fg[0] * aa)
       png.data[idx + 1] = Math.round(bg[1] * (1 - aa) + fg[1] * aa)
       png.data[idx + 2] = Math.round(bg[2] * (1 - aa) + fg[2] * aa)
@@ -226,12 +231,6 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
   }
 
   // ─── Imágenes ──────────────────────────────────────────────────────────────
-  // icon: 29×29 / 58×58  — notificaciones y listado de pases
-  // logo: 50×50 / 100×100 — esquina superior izquierda del pase
-  //
-  // Si stampIconUrl es una URL HTTP, se descarga; si es ruta local (/...), se lee del disco.
-  // Mismo buffer para icon y logo — Apple los recorta en círculo automáticamente.
-
   const logoSrc = await loadLogoBuffer(
     program.stampIconUrl,
     program.backgroundColor,
@@ -239,7 +238,6 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
     100,
   )
 
-  // icon.png must be small (29px); if the fetched image is large it's fine — Apple rescales.
   const iconBuffer   = logoSrc
   const icon2xBuffer = logoSrc
   const logoBuffer   = logoSrc
@@ -247,9 +245,9 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
 
   // Strip @1x 375×144 / @2x 750×288 / @3x 1125×432
   const emoji = program.stampEmoji ?? '⭐'
-  const stripBuffer   = generateStripPNG(currentStamps, program.stampsRequired, program.backgroundColor, program.foregroundColor,  375, 144, emoji)
-  const strip2xBuffer = generateStripPNG(currentStamps, program.stampsRequired, program.backgroundColor, program.foregroundColor,  750, 288, emoji)
-  const strip3xBuffer = generateStripPNG(currentStamps, program.stampsRequired, program.backgroundColor, program.foregroundColor, 1125, 432, emoji)
+  const stripBuffer   = await generateStripPNG(currentStamps, program.stampsRequired, program.backgroundColor, program.foregroundColor,  375, 144, emoji)
+  const strip2xBuffer = await generateStripPNG(currentStamps, program.stampsRequired, program.backgroundColor, program.foregroundColor,  750, 288, emoji)
+  const strip3xBuffer = await generateStripPNG(currentStamps, program.stampsRequired, program.backgroundColor, program.foregroundColor, 1125, 432, emoji)
 
   // ─── Construcción del pase ─────────────────────────────────────────────────
 
@@ -282,8 +280,6 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
 
   pass.type = 'storeCard'
 
-  // No primaryField — keeping the strip free of Apple's large-text overlay so both
-  // stamp rows are fully visible. The counter moves to the first secondaryField.
   pass.secondaryFields.push(
     {
       key:           'stamps',
@@ -295,7 +291,6 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
     { key: 'required', label: 'COMPLETAR', value: `${program.stampsRequired} sellos` },
   )
 
-  // auxiliaryFields: second row — prize description.
   pass.auxiliaryFields.push(
     { key: 'reward', label: 'PREMIO', value: program.rewardDescription },
   )
