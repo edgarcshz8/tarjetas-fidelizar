@@ -34,11 +34,14 @@ COPY prisma ./prisma
 # tsconfig del seed (necesario para: npx prisma db seed)
 COPY tsconfig.seed.json ./tsconfig.seed.json
 
+# Scripts de setup (superadmin, etc.)
+COPY scripts ./scripts
+
 # Configuración de Next.js
 COPY next.config.js ./next.config.js
 COPY package.json ./package.json
 
 EXPOSE 3000
 
-# Aplica migraciones pendientes al arrancar, luego inicia la app.
-CMD ["sh", "-c", "npx prisma migrate deploy && npx next start"]
+# Aplica migraciones, crea el superadmin (idempotente), luego inicia la app.
+CMD ["sh", "-c", "npx prisma migrate deploy && npx ts-node --project tsconfig.seed.json scripts/create-superadmin.ts && npx next start"]
