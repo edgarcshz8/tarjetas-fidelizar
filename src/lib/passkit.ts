@@ -5,28 +5,41 @@ import { PNG } from 'pngjs'
 import { createCanvas, GlobalFonts } from '@napi-rs/canvas'
 import { LoyaltyProgram, CustomerPass, Customer } from '@prisma/client'
 
-// Emoji font: registered once per process from the OS font file so @napi-rs/canvas
-// (Skia) renders color emoji reliably without relying on enableSystemFonts().
-let _emojiFont = ''
-function getEmojiFont(): string {
-  if (_emojiFont) return _emojiFont
+// Emoji fonts are initialized once per process, lazily on first strip render.
+// Two strategies run together:
+//   1. registerFromPath → explicit file (best for Linux NotoColorEmoji / CBDT format)
+//   2. enableSystemFonts → DirectWrite/fontconfig scan (required for Windows COLR emoji)
+let _emojiFontsInit = false
+function ensureEmojiFonts(): void {
+  if (_emojiFontsInit) return
+  _emojiFontsInit = true
+
+  // Strategy 1: explicit file registration
   const candidates = [
-    // Windows
     path.join(process.env.SystemRoot ?? 'C:\\Windows', 'Fonts', 'seguiemj.ttf'),
-    // Debian/Ubuntu (fonts-noto-color-emoji)
     '/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf',
     '/usr/share/fonts/noto-color-emoji/NotoColorEmoji.ttf',
     '/usr/share/fonts/google-noto-emoji/NotoColorEmoji.ttf',
   ]
   for (const p of candidates) {
     if (fs.existsSync(p)) {
-      try { GlobalFonts.registerFromPath(p, 'PassEmoji') } catch {}
-      _emojiFont = 'PassEmoji, "Segoe UI Emoji", "Noto Color Emoji", sans-serif'
-      return _emojiFont
+      try {
+        const ok = GlobalFonts.registerFromPath(p, 'PassEmoji')
+        console.log(`[passkit] emoji font registerFromPath=${ok} path=${p}`)
+      } catch (e) {
+        console.error('[passkit] emoji registerFromPath error:', e)
+      }
+      break
     }
   }
-  _emojiFont = '"Segoe UI Emoji", "Noto Color Emoji", "Apple Color Emoji", sans-serif'
-  return _emojiFont
+
+  // Strategy 2: system font scan (Windows DirectWrite / Linux fontconfig)
+  try {
+    ;(GlobalFonts as any).enableSystemFonts()
+    console.log('[passkit] enableSystemFonts done')
+  } catch (e) {
+    console.error('[passkit] enableSystemFonts error:', e)
+  }
 }
 
 export type PassData = CustomerPass & {
@@ -97,6 +110,8 @@ export function generateStripPNG(
   h: number,
   stampEmoji: string = '⭐',
 ): Buffer {
+  ensureEmojiFonts()
+
   const canvas = createCanvas(w, h)
   const ctx = canvas.getContext('2d')
 
@@ -118,7 +133,7 @@ export function generateStripPNG(
   const emojiSize    = Math.round(r * 1.3)
   const ringColor    = hexToRgba(fgHex, 0.45)
   const ringWidth    = Math.max(1.5, r * 0.13)
-  const emojiFont    = `${emojiSize}px ${getEmojiFont()}`
+  const emojiFont    = `${emojiSize}px PassEmoji, "Segoe UI Emoji", "Noto Color Emoji", "Apple Color Emoji", sans-serif`
 
   function drawStamp(cx: number, cy: number, earned: boolean) {
     ctx.save()
