@@ -37,9 +37,11 @@ export async function upsertLoyaltyClass(
   const client = await auth.getClient()
   const classId = buildLoyaltyClassId(program.id)
 
-  // Google requiere logo HTTPS accesible públicamente (no localhost)
-  const logoUrl = program.logoUrl?.startsWith('https://')
-    ? program.logoUrl
+  // Google requiere logo HTTPS accesible públicamente (no localhost).
+  // stampIconUrl es el campo que rellena el admin; logoUrl es un alias opcional.
+  const rawLogoUrl = program.logoUrl || program.stampIconUrl
+  const logoUrl = rawLogoUrl?.startsWith('http')
+    ? rawLogoUrl
     : `https://placehold.co/300x300/${program.backgroundColor.replace('#', '')}/${program.foregroundColor.replace('#', '')}?text=Logo`
 
   const loyaltyClass: Record<string, any> = {
