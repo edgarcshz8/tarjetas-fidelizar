@@ -171,9 +171,7 @@ function buildLoyaltyObjectPayload(params: {
   const rawAppUrl = process.env.APP_URL || 'http://localhost:3000'
   const appUrl    = /^https?:\/\//.test(rawAppUrl) ? rawAppUrl : `https://${rawAppUrl}`
 
-  const stampVisual = stampEmoji.repeat(currentStamps) + '○'.repeat(Math.max(0, stampsRequired - currentStamps))
-
-  // heroImage: 1032×336 PNG with the same 2-row coffee-cup strip as Apple Wallet.
+  // heroImage: 1032×336 PNG with the same 2-row stamp strip as Apple Wallet.
   // ?v= busts the Google CDN cache each time the stamp count changes.
   const heroImageUri = `${appUrl}/api/passes/google/strip/${serialNumber}?v=${currentStamps}`
 
@@ -186,7 +184,7 @@ function buildLoyaltyObjectPayload(params: {
     loyaltyPoints: {
       label: rewardReady ? '🎉 PREMIO LISTO' : 'SELLOS',
       balance: {
-        string: rewardReady ? '¡Reclama tu premio!' : stampVisual,
+        string: rewardReady ? '¡Reclama tu premio!' : `${currentStamps} / ${stampsRequired}`,
       },
     },
     heroImage: {
