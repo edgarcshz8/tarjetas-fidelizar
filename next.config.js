@@ -16,6 +16,7 @@ const nextConfig = {
       'passkit-generator',
       '@parse/node-apn',
       'pngjs',
+      '@napi-rs/canvas',
     ],
   },
 }

@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
       stampsRequired: data.stampsRequired,
       rewardDescription: data.rewardDescription,
       stampIconUrl: data.stampIconUrl,
+      stampEmoji: data.stampEmoji,
       rewardIconUrl: data.rewardIconUrl,
       logoUrl: data.logoUrl,
       backgroundColor: data.backgroundColor,
@@ -122,6 +123,7 @@ async function syncWalletPasses(programId: string): Promise<void> {
         pass.currentStamps,
         program.stampsRequired,
         pass.rewardReady,
+        program.stampEmoji ?? '⭐',
       ).catch(err =>
         console.error(`[programs] pushGoogleWalletMessage serial=${pass.serialNumber}:`, err)
       )

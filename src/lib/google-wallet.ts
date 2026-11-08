@@ -111,6 +111,7 @@ export async function createLoyaltyObject(passData: GooglePassData): Promise<str
     currentStamps,
     stampsRequired: program.stampsRequired,
     rewardDescription: program.rewardDescription,
+    stampEmoji: program.stampEmoji ?? '⭐',
     rewardReady,
   })
 
@@ -139,6 +140,7 @@ export async function updateLoyaltyObject(passData: GooglePassData): Promise<voi
     currentStamps,
     stampsRequired: program.stampsRequired,
     rewardDescription: program.rewardDescription,
+    stampEmoji: program.stampEmoji ?? '⭐',
     rewardReady,
   })
 
@@ -161,15 +163,15 @@ function buildLoyaltyObjectPayload(params: {
   currentStamps: number
   stampsRequired: number
   rewardDescription: string
+  stampEmoji?: string
   rewardReady: boolean
 }) {
-  const { objectId, classId, serialNumber, customer, currentStamps, stampsRequired, rewardDescription, rewardReady } = params
+  const { objectId, classId, serialNumber, customer, currentStamps, stampsRequired, rewardDescription, stampEmoji = '⭐', rewardReady } = params
 
   const rawAppUrl = process.env.APP_URL || 'http://localhost:3000'
   const appUrl    = /^https?:\/\//.test(rawAppUrl) ? rawAppUrl : `https://${rawAppUrl}`
 
-  // ☕ for earned stamps, ○ for pending — matches the coffee-cup theme
-  const stampVisual = '☕'.repeat(currentStamps) + '○'.repeat(Math.max(0, stampsRequired - currentStamps))
+  const stampVisual = stampEmoji.repeat(currentStamps) + '○'.repeat(Math.max(0, stampsRequired - currentStamps))
 
   // heroImage: 1032×336 PNG with the same 2-row coffee-cup strip as Apple Wallet.
   // ?v= busts the Google CDN cache each time the stamp count changes.
@@ -224,11 +226,12 @@ export async function pushGoogleWalletMessage(
   currentStamps: number,
   stampsRequired: number,
   rewardReady: boolean,
+  stampEmoji: string = '⭐',
 ): Promise<void> {
   const auth = getGoogleAuth()
   const client = await auth.getClient()
 
-  const header = rewardReady ? '🎉 ¡Premio listo!' : '☕ ¡Nuevo sello!'
+  const header = rewardReady ? '🎉 ¡Premio listo!' : `${stampEmoji} ¡Nuevo sello!`
   const body   = rewardReady
     ? '¡Completaste todos tus sellos! Muestra esta tarjeta al comerciante.'
     : `Tienes ${currentStamps} de ${stampsRequired} sellos.`

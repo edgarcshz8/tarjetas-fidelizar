@@ -25,6 +25,7 @@ export async function GET(
     passRecord.program.backgroundColor,
     passRecord.program.foregroundColor,
     1032, 336,
+    passRecord.program.stampEmoji ?? '⭐',
   )
 
   return new Response(new Uint8Array(buffer), {

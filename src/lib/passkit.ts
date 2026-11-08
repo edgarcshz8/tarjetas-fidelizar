@@ -2,6 +2,7 @@ import { PKPass } from 'passkit-generator'
 import fs from 'fs'
 import path from 'path'
 import { PNG } from 'pngjs'
+import { createCanvas } from '@napi-rs/canvas'
 import { LoyaltyProgram, CustomerPass, Customer } from '@prisma/client'
 
 export type PassData = CustomerPass & {
@@ -54,34 +55,13 @@ async function loadLogoBuffer(
 
 // ─── Generador de strip PNG ──────────────────────────────────────────────────
 //
-// Dibuja N sellos en fila en el TERCIO SUPERIOR del strip.
-// Apple Wallet renderiza el texto del primaryField en la parte INFERIOR del strip.
-//
-//   · Ganados    → círculo relleno (foregroundColor) con silueta de taza en bgColor
-//   · Pendientes → anillo vacío semi-transparente con silueta de taza muy tenue
+// Dibuja N sellos (círculo relleno + emoji) en 1 o 2 filas.
+//   · Ganados    → círculo relleno (foregroundColor) + emoji a tamaño completo
+//   · Pendientes → anillo semi-transparente + emoji muy tenue
 
-// Returns true if (px, py) falls inside the coffee-cup silhouette centered at
-// (cx, cy_c) with stamp radius R. The cup is composed of:
-//   – trapezoid body (wider at top, narrower at bottom)
-//   – elliptical ring handle on the right side
-function inCoffeeCup(px: number, py: number, cx: number, cy_c: number, R: number): boolean {
-  // ── Cup body ──
-  const topY = cy_c - R * 0.42
-  const botY = cy_c + R * 0.54
-  if (py >= topY && py <= botY) {
-    const t = (py - topY) / (botY - topY)
-    const halfW = R * (0.52 - t * 0.15) // 0.52R at top → 0.37R at bottom
-    if (Math.abs(px - cx) <= halfW) return true
-  }
-
-  // ── Handle (elliptical ring, right side only) ──
-  const hcx = cx + R * 0.65
-  const hcy = cy_c + R * 0.06
-  const outerD = ((px - hcx) / (R * 0.21)) ** 2 + ((py - hcy) / (R * 0.26)) ** 2
-  const innerD = ((px - hcx) / (R * 0.09)) ** 2 + ((py - hcy) / (R * 0.13)) ** 2
-  if (outerD <= 1.0 && innerD >= 1.0 && px >= cx + R * 0.37) return true
-
-  return false
+function hexToRgba(hex: string, alpha: number): string {
+  const [r, g, b] = hexToRgbTuple(hex)
+  return `rgba(${r},${g},${b},${alpha})`
 }
 
 export function generateStripPNG(
@@ -91,26 +71,19 @@ export function generateStripPNG(
   fgHex: string,
   w: number,
   h: number,
+  stampEmoji: string = '⭐',
 ): Buffer {
-  const png = new PNG({ width: w, height: h })
-  const bg = hexToRgbTuple(bgHex)
-  const fg = hexToRgbTuple(fgHex)
+  const canvas = createCanvas(w, h)
+  const ctx = canvas.getContext('2d')
 
-  // Fondo sólido
-  for (let i = 0; i < w * h; i++) {
-    png.data[i * 4 + 0] = bg[0]
-    png.data[i * 4 + 1] = bg[1]
-    png.data[i * 4 + 2] = bg[2]
-    png.data[i * 4 + 3] = 255
-  }
+  ctx.fillStyle = bgHex
+  ctx.fillRect(0, 0, w, h)
 
   const n         = total
   const singleRow = n <= 5
   const perRow1   = singleRow ? n : Math.ceil(n / 2)
   const perRow2   = singleRow ? 0 : Math.floor(n / 2)
 
-  // 1 fila  (n ≤ 5): sellos grandes centrados verticalmente.
-  // 2 filas (n > 5): filas al 28 % y 72 %, margen simétrico ~12 %.
   const r   = singleRow
     ? Math.min(h * 0.38, (w * 0.94) / (n * 2.1))
     : Math.min(h * 0.19, (w * 0.94) / (perRow1 * 2.1))
@@ -118,73 +91,51 @@ export function generateStripPNG(
   const cy1 = singleRow ? h * 0.50 : h * 0.28
   const cy2 = h * 0.72
 
-  function setPixel(px: number, py: number, cr: number, cg: number, cb: number, alpha: number) {
-    if (px < 0 || px >= w || py < 0 || py >= h) return
-    const idx = (Math.round(py) * w + Math.round(px)) * 4
-    const a = alpha / 255
-    png.data[idx + 0] = Math.round(bg[0] * (1 - a) + cr * a)
-    png.data[idx + 1] = Math.round(bg[1] * (1 - a) + cg * a)
-    png.data[idx + 2] = Math.round(bg[2] * (1 - a) + cb * a)
-    png.data[idx + 3] = 255
-  }
+  const emojiSize    = Math.round(r * 1.3)
+  const ringColor    = hexToRgba(fgHex, 0.45)
+  const ringWidth    = Math.max(1.5, r * 0.13)
 
-  function drawCup(cx: number, cy: number, earned: boolean) {
-    const strokeW = Math.max(1.5, r * 0.13)
-    const x0 = Math.floor(cx - r - 1)
-    const x1 = Math.ceil(cx + r + r * 0.2 + 1)
-    const y0 = Math.floor(cy - r - 1)
-    const y1 = Math.ceil(cy + r + 1)
+  function drawStamp(cx: number, cy: number, earned: boolean) {
+    ctx.save()
 
-    for (let py = y0; py <= y1; py++) {
-      for (let px = x0; px <= x1; px++) {
-        const dist     = Math.sqrt((px - cx) ** 2 + (py - cy) ** 2)
-        const inCircle = dist <= r + 1
-        const circleAA = Math.max(0, Math.min(1, r - dist + 0.8))
-        const inCup    = inCoffeeCup(px, py, cx, cy, r)
+    ctx.beginPath()
+    ctx.arc(cx, cy, r, 0, Math.PI * 2)
 
-        if (earned) {
-          if (circleAA > 0) {
-            if (inCup) {
-              setPixel(px, py, bg[0], bg[1], bg[2], Math.round(circleAA * 195))
-            } else {
-              setPixel(px, py, fg[0], fg[1], fg[2], Math.round(circleAA * 255))
-            }
-          }
-          if (inCircle && !inCup) {
-            const glowCx   = cx - r * 0.28
-            const glowCy   = cy - r * 0.28
-            const glowDist = Math.sqrt((px - glowCx) ** 2 + (py - glowCy) ** 2)
-            const glowAA   = Math.max(0, Math.min(1, r * 0.22 - glowDist + 0.5))
-            if (glowAA > 0) setPixel(px, py, 255, 255, 255, Math.round(glowAA * 100))
-          }
-        } else {
-          const inner   = r - strokeW
-          const outerAA = Math.max(0, Math.min(1, r - dist + 0.8))
-          const innerAA = Math.max(0, Math.min(1, dist - inner + 0.8))
-          const ringAA  = Math.min(outerAA, innerAA)
-          if (ringAA > 0) setPixel(px, py, fg[0], fg[1], fg[2], Math.round(ringAA * 115))
-          if (inCircle && inCup && dist < inner) setPixel(px, py, fg[0], fg[1], fg[2], 28)
-        }
-      }
+    if (earned) {
+      ctx.fillStyle = fgHex
+      ctx.fill()
+    } else {
+      ctx.strokeStyle = ringColor
+      ctx.lineWidth = ringWidth
+      ctx.stroke()
     }
+
+    // Clip emoji to circle bounds
+    ctx.clip()
+    ctx.font = `${emojiSize}px sans-serif`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.globalAlpha = earned ? 1.0 : 0.22
+    ctx.fillText(stampEmoji, cx, cy)
+
+    ctx.restore()
   }
 
   const totalW1 = perRow1 * 2 * r + (perRow1 - 1) * gap
   const startX1 = (w - totalW1) / 2 + r
-
   for (let i = 0; i < perRow1; i++) {
-    drawCup(startX1 + i * (2 * r + gap), cy1, i < current)
+    drawStamp(startX1 + i * (2 * r + gap), cy1, i < current)
   }
 
   if (perRow2 > 0) {
     const totalW2 = perRow2 * 2 * r + (perRow2 - 1) * gap
     const startX2 = (w - totalW2) / 2 + r
     for (let i = 0; i < perRow2; i++) {
-      drawCup(startX2 + i * (2 * r + gap), cy2, (perRow1 + i) < current)
+      drawStamp(startX2 + i * (2 * r + gap), cy2, (perRow1 + i) < current)
     }
   }
 
-  return PNG.sync.write(png)
+  return canvas.toBuffer('image/png')
 }
 
 // ─── Generador de icono PNG ───────────────────────────────────────────────────
@@ -255,9 +206,10 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
   const logo2xBuffer = logoSrc
 
   // Strip @1x 375×144 / @2x 750×288 / @3x 1125×432
-  const stripBuffer   = generateStripPNG(currentStamps, program.stampsRequired, program.backgroundColor, program.foregroundColor,  375, 144)
-  const strip2xBuffer = generateStripPNG(currentStamps, program.stampsRequired, program.backgroundColor, program.foregroundColor,  750, 288)
-  const strip3xBuffer = generateStripPNG(currentStamps, program.stampsRequired, program.backgroundColor, program.foregroundColor, 1125, 432)
+  const emoji = program.stampEmoji ?? '⭐'
+  const stripBuffer   = generateStripPNG(currentStamps, program.stampsRequired, program.backgroundColor, program.foregroundColor,  375, 144, emoji)
+  const strip2xBuffer = generateStripPNG(currentStamps, program.stampsRequired, program.backgroundColor, program.foregroundColor,  750, 288, emoji)
+  const strip3xBuffer = generateStripPNG(currentStamps, program.stampsRequired, program.backgroundColor, program.foregroundColor, 1125, 432, emoji)
 
   // ─── Construcción del pase ─────────────────────────────────────────────────
 

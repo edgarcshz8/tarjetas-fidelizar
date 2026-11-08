@@ -106,6 +106,7 @@ export async function POST(req: NextRequest) {
           updatedPass.currentStamps,
           updatedPass.program.stampsRequired,
           rewardReady,
+          updatedPass.program.stampEmoji ?? '⭐',
         )
       )
       .catch(err => console.error('[stamp] Error Google Wallet push:', err))
