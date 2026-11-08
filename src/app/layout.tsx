@@ -4,6 +4,10 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'Tarjetas de Fidelización',
   description: 'Programa de fidelización con Apple Wallet y Google Wallet',
+  icons: {
+    icon:  '/favicon.png',
+    apple: '/favicon.png',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
