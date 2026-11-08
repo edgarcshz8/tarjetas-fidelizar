@@ -2,8 +2,12 @@ import { PKPass } from 'passkit-generator'
 import fs from 'fs'
 import path from 'path'
 import { PNG } from 'pngjs'
-import { createCanvas } from '@napi-rs/canvas'
+import { createCanvas, GlobalFonts } from '@napi-rs/canvas'
 import { LoyaltyProgram, CustomerPass, Customer } from '@prisma/client'
+
+// Load system emoji fonts (Segoe UI Emoji on Windows, Noto Color Emoji on Linux)
+// so @napi-rs/canvas can render emoji glyphs in the wallet pass strip.
+;(GlobalFonts as any).enableSystemFonts()
 
 export type PassData = CustomerPass & {
   customer: Customer
@@ -112,10 +116,10 @@ export function generateStripPNG(
 
     // Clip emoji to circle bounds
     ctx.clip()
-    ctx.font = `${emojiSize}px sans-serif`
+    ctx.font = `${emojiSize}px "Segoe UI Emoji", "Noto Color Emoji", "Apple Color Emoji", sans-serif`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.globalAlpha = earned ? 1.0 : 0.22
+    ctx.globalAlpha = earned ? 1.0 : 0.40
     ctx.fillText(stampEmoji, cx, cy)
 
     ctx.restore()
