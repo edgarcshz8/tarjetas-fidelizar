@@ -27,7 +27,12 @@ export default function LoginPage() {
     setLoading(false)
 
     if (result?.error) {
-      setError('Email o contraseña incorrectos')
+      if (result.error.startsWith('TooManyAttempts:')) {
+        const mins = result.error.split(':')[1]
+        setError(`Demasiados intentos fallidos. Intenta de nuevo en ${mins} minuto${mins === '1' ? '' : 's'}.`)
+      } else {
+        setError('Email o contraseña incorrectos')
+      }
       return
     }
 

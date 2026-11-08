@@ -2,6 +2,7 @@ import { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
+import { checkLoginRateLimit, recordLoginFailure, resetLoginAttempts } from '@/lib/rate-limit'
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -20,15 +21,28 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
 
+        const { limited, minutesLeft } = checkLoginRateLimit(credentials.email)
+        if (limited) {
+          throw new Error(`TooManyAttempts:${minutesLeft}`)
+        }
+
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
           include: { business: true },
         })
 
-        if (!user) return null
+        if (!user) {
+          recordLoginFailure(credentials.email)
+          return null
+        }
 
         const passwordValid = await bcrypt.compare(credentials.password, user.password)
-        if (!passwordValid) return null
+        if (!passwordValid) {
+          recordLoginFailure(credentials.email)
+          return null
+        }
+
+        resetLoginAttempts(credentials.email)
 
         return {
           id: user.id,
