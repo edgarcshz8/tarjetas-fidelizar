@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { signIn } from 'next-auth/react'
+import { signIn, getSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 export default function LoginForm() {
@@ -36,7 +36,12 @@ export default function LoginForm() {
       return
     }
 
-    router.push('/admin/dashboard')
+    const session = await getSession()
+    if (session?.user.role === 'SUPERADMIN') {
+      router.push('/superadmin')
+    } else {
+      router.push('/admin/dashboard')
+    }
     router.refresh()
   }
 

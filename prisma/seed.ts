@@ -4,6 +4,22 @@ import bcrypt from 'bcryptjs'
 const prisma = new PrismaClient()
 
 async function main() {
+  // ─── Super admin ───────────────────────────────────────────────────────────
+  const superAdminPassword = 'Fidelizar2024!'
+  const superHashedPw = await bcrypt.hash(superAdminPassword, 12)
+
+  const platform = await prisma.business.upsert({
+    where: { slug: 'platform-system' },
+    update: {},
+    create: { slug: 'platform-system', name: 'Platform', primaryColor: '#0f172a', secondaryColor: '#ffffff', accentColor: '#6366f1' },
+  })
+  await prisma.user.upsert({
+    where: { email: 'edgar.cshz8@gmail.com' },
+    update: {},
+    create: { businessId: platform.id, email: 'edgar.cshz8@gmail.com', password: superHashedPw, name: 'Edgar Campos', role: 'SUPERADMIN' },
+  })
+
+  // ─── Demo ─────────────────────────────────────────────────────────────────
   const hashedPassword = await bcrypt.hash('admin123', 12)
 
   const business = await prisma.business.upsert({
@@ -48,6 +64,7 @@ async function main() {
   })
 
   console.log('Seed completado:')
+  console.log(`  Super admin: edgar.cshz8@gmail.com / ${superAdminPassword}  → /superadmin`)
   console.log(`  Business: ${business.name} (slug: ${business.slug})`)
   console.log(`  Usuario admin: ${user.email} / contraseña: admin123`)
   console.log(`  URL de registro: http://localhost:3000/${business.slug}`)
