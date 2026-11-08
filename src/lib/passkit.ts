@@ -5,9 +5,29 @@ import { PNG } from 'pngjs'
 import { createCanvas, GlobalFonts } from '@napi-rs/canvas'
 import { LoyaltyProgram, CustomerPass, Customer } from '@prisma/client'
 
-// Load system emoji fonts (Segoe UI Emoji on Windows, Noto Color Emoji on Linux)
-// so @napi-rs/canvas can render emoji glyphs in the wallet pass strip.
-;(GlobalFonts as any).enableSystemFonts()
+// Emoji font: registered once per process from the OS font file so @napi-rs/canvas
+// (Skia) renders color emoji reliably without relying on enableSystemFonts().
+let _emojiFont = ''
+function getEmojiFont(): string {
+  if (_emojiFont) return _emojiFont
+  const candidates = [
+    // Windows
+    path.join(process.env.SystemRoot ?? 'C:\\Windows', 'Fonts', 'seguiemj.ttf'),
+    // Debian/Ubuntu (fonts-noto-color-emoji)
+    '/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf',
+    '/usr/share/fonts/noto-color-emoji/NotoColorEmoji.ttf',
+    '/usr/share/fonts/google-noto-emoji/NotoColorEmoji.ttf',
+  ]
+  for (const p of candidates) {
+    if (fs.existsSync(p)) {
+      try { GlobalFonts.registerFromPath(p, 'PassEmoji') } catch {}
+      _emojiFont = 'PassEmoji, "Segoe UI Emoji", "Noto Color Emoji", sans-serif'
+      return _emojiFont
+    }
+  }
+  _emojiFont = '"Segoe UI Emoji", "Noto Color Emoji", "Apple Color Emoji", sans-serif'
+  return _emojiFont
+}
 
 export type PassData = CustomerPass & {
   customer: Customer
@@ -98,6 +118,7 @@ export function generateStripPNG(
   const emojiSize    = Math.round(r * 1.3)
   const ringColor    = hexToRgba(fgHex, 0.45)
   const ringWidth    = Math.max(1.5, r * 0.13)
+  const emojiFont    = `${emojiSize}px ${getEmojiFont()}`
 
   function drawStamp(cx: number, cy: number, earned: boolean) {
     ctx.save()
@@ -116,7 +137,7 @@ export function generateStripPNG(
 
     // Clip emoji to circle bounds
     ctx.clip()
-    ctx.font = `${emojiSize}px "Segoe UI Emoji", "Noto Color Emoji", "Apple Color Emoji", sans-serif`
+    ctx.font = emojiFont
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.globalAlpha = earned ? 1.0 : 0.40
