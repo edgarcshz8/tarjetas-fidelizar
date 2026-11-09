@@ -24,6 +24,8 @@ export default function RegisterPage() {
   const [errorMsg, setErrorMsg] = useState('')
   const [downloadData, setDownloadData] = useState<DownloadData | null>(null)
   const [form, setForm] = useState({ name: '', email: '', phone: '' })
+  const [acceptTerms, setAcceptTerms] = useState(false)
+  const [acceptPrivacy, setAcceptPrivacy] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -120,9 +122,55 @@ export default function RegisterPage() {
               />
             </div>
 
+            {/* Checkboxes legales */}
+            <div className="space-y-3 pt-1">
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  required
+                  checked={acceptTerms}
+                  onChange={e => setAcceptTerms(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 shrink-0 accent-slate-800 cursor-pointer"
+                />
+                <span className="text-sm text-gray-600 leading-snug">
+                  He leído y acepto los{' '}
+                  <a
+                    href="/terminos-y-condiciones"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-slate-800 font-medium underline underline-offset-2 hover:text-slate-600"
+                  >
+                    Términos y Condiciones
+                  </a>
+                </span>
+              </label>
+
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  required
+                  checked={acceptPrivacy}
+                  onChange={e => setAcceptPrivacy(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 shrink-0 accent-slate-800 cursor-pointer"
+                />
+                <span className="text-sm text-gray-600 leading-snug">
+                  He leído y acepto la{' '}
+                  <a
+                    href="/politica-de-privacidad"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-slate-800 font-medium underline underline-offset-2 hover:text-slate-600"
+                  >
+                    Política de Privacidad
+                  </a>{' '}
+                  y consiento el tratamiento de mis datos personales
+                </span>
+              </label>
+            </div>
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !acceptTerms || !acceptPrivacy}
               className="w-full py-3 px-6 bg-slate-900 text-white font-semibold rounded-xl hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
@@ -139,9 +187,6 @@ export default function RegisterPage() {
             </button>
           </form>
 
-          <p className="mt-6 text-xs text-center text-gray-400">
-            Al registrarte aceptas recibir comunicaciones del negocio.
-          </p>
         </div>
       </div>
     </div>
