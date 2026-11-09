@@ -110,11 +110,10 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Teléfono <span className="text-gray-400 font-normal">(opcional)</span>
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
               <input
                 type="tel"
+                required
                 value={form.phone}
                 onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent transition"
