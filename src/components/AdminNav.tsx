@@ -4,12 +4,20 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { Session } from 'next-auth'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import {
+  faChartBar,
+  faQrcode,
+  faUsers,
+  faGear,
+} from '@fortawesome/free-solid-svg-icons'
+import { IconDefinition } from '@fortawesome/fontawesome-svg-core'
 
-const navItems = [
-  { href: '/admin/dashboard', label: 'Dashboard', icon: '📊' },
-  { href: '/admin/scanner', label: 'Escanear', icon: '📷' },
-  { href: '/admin/customers', label: 'Clientes', icon: '👥' },
-  { href: '/admin/settings', label: 'Configuración', icon: '⚙️' },
+const navItems: { href: string; label: string; icon: IconDefinition }[] = [
+  { href: '/admin/dashboard', label: 'Dashboard',      icon: faChartBar },
+  { href: '/admin/scanner',   label: 'Escanear',       icon: faQrcode   },
+  { href: '/admin/customers', label: 'Clientes',       icon: faUsers    },
+  { href: '/admin/settings',  label: 'Configuración',  icon: faGear     },
 ]
 
 export default function AdminNav({ session }: { session: Session }) {
@@ -34,7 +42,7 @@ export default function AdminNav({ session }: { session: Session }) {
                       : 'text-slate-300 hover:bg-white/10 hover:text-white'
                   }`}
                 >
-                  <span>{item.icon}</span>
+                  <FontAwesomeIcon icon={item.icon} className="w-4 h-4" />
                   {item.label}
                 </Link>
               ))}
@@ -66,7 +74,7 @@ export default function AdminNav({ session }: { session: Session }) {
                   : 'text-slate-400 hover:bg-white/10 hover:text-white'
               }`}
             >
-              <span className="text-lg">{item.icon}</span>
+              <FontAwesomeIcon icon={item.icon} className="w-5 h-5" />
               {item.label}
             </Link>
           ))}
