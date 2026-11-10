@@ -2,6 +2,15 @@
 
 import { useState, useEffect, useRef } from 'react'
 import jsQR from 'jsqr'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import {
+  faCamera,
+  faCircleCheck,
+  faTrophy,
+  faCircleXmark,
+  faSpinner,
+  faGift,
+} from '@fortawesome/free-solid-svg-icons'
 
 type ScanState = 'idle' | 'scanning' | 'processing' | 'success' | 'error' | 'reward'
 
@@ -72,7 +81,6 @@ export default function QRScannerClient() {
       const ctx = canvas.getContext('2d')
       if (!ctx) { requestAnimationFrame(scan); return }
 
-      // Esperar a que el video tenga frames reales
       if (video.readyState < video.HAVE_ENOUGH_DATA) {
         requestAnimationFrame(scan)
         return
@@ -135,7 +143,6 @@ export default function QRScannerClient() {
     e.preventDefault()
     const value = manualSerial.trim()
     if (!value) return
-    // If the input looks like an email, send as email; otherwise as serialNumber
     if (value.includes('@')) {
       await processStamp({ email: value })
     } else {
@@ -157,7 +164,9 @@ export default function QRScannerClient() {
     return (
       <div className="max-w-md mx-auto">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
-          <div className="text-5xl mb-4">✅</div>
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <FontAwesomeIcon icon={faCircleCheck} className="w-8 h-8 text-green-500" />
+          </div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">¡Sello Agregado!</h2>
           <p className="text-gray-600 mb-4">{result.message}</p>
           <StampProgress current={result.currentStamps} required={result.stampsRequired} />
@@ -176,7 +185,9 @@ export default function QRScannerClient() {
     return (
       <div className="max-w-md mx-auto">
         <div className="bg-green-50 border-2 border-green-400 rounded-2xl p-8 text-center">
-          <div className="text-5xl mb-4">🎉</div>
+          <div className="w-16 h-16 bg-green-200 rounded-full flex items-center justify-center mx-auto mb-4">
+            <FontAwesomeIcon icon={faTrophy} className="w-8 h-8 text-green-700" />
+          </div>
           <h2 className="text-2xl font-bold text-green-800 mb-2">¡Premio Completado!</h2>
           <p className="text-green-700 font-medium mb-2">{result.customerName}</p>
           <p className="text-green-600 text-sm mb-6">{result.message}</p>
@@ -193,7 +204,9 @@ export default function QRScannerClient() {
     return (
       <div className="max-w-md mx-auto">
         <div className="bg-white rounded-2xl shadow-sm border border-red-200 p-8 text-center">
-          <div className="text-4xl mb-4">❌</div>
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <FontAwesomeIcon icon={faCircleXmark} className="w-8 h-8 text-red-500" />
+          </div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">Error</h2>
           <p className="text-red-600 mb-6">{error}</p>
           <button
@@ -211,7 +224,9 @@ export default function QRScannerClient() {
     return (
       <div className="max-w-md mx-auto">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
-          <div className="animate-spin text-4xl mb-4">⚙️</div>
+          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <FontAwesomeIcon icon={faSpinner} className="w-8 h-8 text-slate-600 animate-spin" />
+          </div>
           <p className="text-gray-600">Procesando...</p>
         </div>
       </div>
@@ -249,7 +264,9 @@ export default function QRScannerClient() {
         {/* Panel idle */}
         {state === 'idle' && (
           <div className="p-8 text-center">
-            <div className="text-5xl mb-4">📷</div>
+            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FontAwesomeIcon icon={faCamera} className="w-8 h-8 text-slate-500" />
+            </div>
             <h3 className="font-semibold text-gray-900 mb-2">Escanear QR del cliente</h3>
             <p className="text-gray-500 text-sm mb-6">
               Activa la cámara para escanear automáticamente,<br />
@@ -326,9 +343,14 @@ function RedeemButton({ serial, onDone }: { serial: string; onDone: () => void }
     <button
       onClick={handleRedeem}
       disabled={loading}
-      className="w-full py-3 bg-green-700 text-white font-bold rounded-xl hover:bg-green-800 transition disabled:opacity-50"
+      className="w-full py-3 bg-green-700 text-white font-bold rounded-xl hover:bg-green-800 transition disabled:opacity-50 flex items-center justify-center gap-2"
     >
-      {loading ? 'Canjeando...' : '🎁 Canjear Premio Ahora'}
+      {loading ? (
+        <FontAwesomeIcon icon={faSpinner} className="w-4 h-4 animate-spin" />
+      ) : (
+        <FontAwesomeIcon icon={faGift} className="w-4 h-4" />
+      )}
+      {loading ? 'Canjeando...' : 'Canjear Premio Ahora'}
     </button>
   )
 }
