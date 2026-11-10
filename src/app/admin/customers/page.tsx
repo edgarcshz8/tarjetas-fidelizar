@@ -7,7 +7,7 @@ import { faGift } from '@fortawesome/free-solid-svg-icons'
 import PageSizeSelector from './PageSizeSelector'
 
 const ALLOWED_SIZES = [10, 25, 50, 100]
-const DEFAULT_SIZE  = 25
+const DEFAULT_SIZE  = 10
 
 export default async function CustomersPage({
   searchParams,
