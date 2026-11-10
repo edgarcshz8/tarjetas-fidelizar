@@ -29,17 +29,17 @@ export async function POST() {
 
   // Bump updatedAt so the If-Modified-Since check on /v1/passes passes through
   await prisma.customerPass.updateMany({
-    where: { id: { in: passes.map(p => p.id) } },
+    where: { id: { in: passes.map((p: { id: string }) => p.id) } },
     data: { applePassUpdatedAt: new Date() },
   })
 
   // Send APNs push to each pass (fire-and-forget per pass, collect counts)
   const results = await Promise.allSettled(
-    passes.map(p => pushPassUpdate(p.serialNumber))
+    passes.map((p: { serialNumber: string }) => pushPassUpdate(p.serialNumber))
   )
 
-  const pushed    = results.filter(r => r.status === 'fulfilled').length
-  const failed    = results.filter(r => r.status === 'rejected').length
+  const pushed = results.filter((r): r is PromiseFulfilledResult<void> => r.status === 'fulfilled').length
+  const failed = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected').length
 
   return NextResponse.json({ pushed, failed, total: passes.length })
 }
