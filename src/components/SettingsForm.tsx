@@ -117,7 +117,7 @@ export default function SettingsForm({ business, program }: Props) {
 
     setSaving(true)
     try {
-      const [progRes] = await Promise.all([
+      const [progRes, bizRes] = await Promise.all([
         fetch('/api/admin/programs', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -137,7 +137,12 @@ export default function SettingsForm({ business, program }: Props) {
 
       if (!progRes.ok) {
         const data = await progRes.json()
-        setError(data.error || 'Error al guardar')
+        setError(data.error || 'Error al guardar el programa')
+        return
+      }
+      if (!bizRes.ok) {
+        const data = await bizRes.json()
+        setError(data.error || 'Error al guardar el negocio')
         return
       }
 
