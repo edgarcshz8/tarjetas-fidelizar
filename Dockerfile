@@ -43,5 +43,6 @@ COPY package.json ./package.json
 
 EXPOSE 3000
 
-# Aplica migraciones, crea el superadmin (idempotente), luego inicia la app.
-CMD ["sh", "-c", "npx prisma migrate deploy && npx ts-node --project tsconfig.seed.json scripts/create-superadmin.ts && npx next start"]
+# start.sh: migrate deploy → failsafe columns → superadmin seed → next start.
+# "set -e" inside the script ensures the container fails fast on any error.
+CMD ["sh", "scripts/start.sh"]
