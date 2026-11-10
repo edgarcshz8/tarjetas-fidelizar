@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faGift } from '@fortawesome/free-solid-svg-icons'
 
+const PAGE_SIZE = 15
+
 export default async function CustomersPage({
   searchParams,
 }: {
@@ -14,41 +16,64 @@ export default async function CustomersPage({
   if (!session) redirect('/admin/login')
 
   const search = searchParams.search || ''
-  const page = parseInt(searchParams.page || '1')
-  const pageSize = 20
+  const page  = Math.max(1, parseInt(searchParams.page || '1'))
+
+  const whereFilter = {
+    program: { businessId: session.user.businessId },
+    ...(search
+      ? {
+          customer: {
+            OR: [
+              { name:  { contains: search, mode: 'insensitive' as const } },
+              { email: { contains: search, mode: 'insensitive' as const } },
+            ],
+          },
+        }
+      : {}),
+  }
 
   const [passes, total] = await Promise.all([
     prisma.customerPass.findMany({
-      where: {
-        program: { businessId: session.user.businessId },
-        customer: search
-          ? {
-              OR: [
-                { name: { contains: search } },
-                { email: { contains: search } },
-              ],
-            }
-          : undefined,
-      },
+      where: whereFilter,
       include: {
         customer: true,
         program: { select: { name: true, stampsRequired: true } },
       },
       orderBy: { createdAt: 'desc' },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
+      skip:  (page - 1) * PAGE_SIZE,
+      take:  PAGE_SIZE,
     }),
-    prisma.customerPass.count({
-      where: { program: { businessId: session.user.businessId } },
-    }),
+    prisma.customerPass.count({ where: whereFilter }),
   ])
+
+  const totalPages  = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const firstOnPage = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
+  const lastOnPage  = Math.min(page * PAGE_SIZE, total)
+
+  function pageHref(p: number) {
+    const params = new URLSearchParams()
+    if (search) params.set('search', search)
+    params.set('page', String(p))
+    return `?${params.toString()}`
+  }
+
+  // Show at most 5 page buttons centred around current page
+  const delta = 2
+  const pageNums: number[] = []
+  for (let p = Math.max(1, page - delta); p <= Math.min(totalPages, page + delta); p++) {
+    pageNums.push(p)
+  }
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Clientes</h1>
-          <p className="text-gray-500">{total} clientes registrados</p>
+          <p className="text-gray-500">
+            {search
+              ? `${total} resultado${total !== 1 ? 's' : ''} para "${search}"`
+              : `${total} cliente${total !== 1 ? 's' : ''} registrado${total !== 1 ? 's' : ''}`}
+          </p>
         </div>
       </div>
 
@@ -125,24 +150,68 @@ export default async function CustomersPage({
       </div>
 
       {/* Paginación */}
-      {total > pageSize && (
-        <div className="mt-6 flex justify-center gap-2">
-          {page > 1 && (
-            <a
-              href={`?page=${page - 1}&search=${search}`}
-              className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm hover:bg-gray-50 transition"
-            >
-              ← Anterior
-            </a>
-          )}
-          {page * pageSize < total && (
-            <a
-              href={`?page=${page + 1}&search=${search}`}
-              className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm hover:bg-gray-50 transition"
-            >
-              Siguiente →
-            </a>
-          )}
+      {totalPages > 1 && (
+        <div className="mt-6 flex flex-col items-center gap-3">
+          <p className="text-sm text-gray-500">
+            Mostrando {firstOnPage}–{lastOnPage} de {total} clientes
+          </p>
+
+          <div className="flex items-center gap-1">
+            {/* Anterior */}
+            {page > 1 ? (
+              <a
+                href={pageHref(page - 1)}
+                className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition"
+              >
+                ←
+              </a>
+            ) : (
+              <span className="px-3 py-2 border border-gray-100 rounded-lg text-sm text-gray-300 cursor-not-allowed">←</span>
+            )}
+
+            {/* Primera página + ellipsis */}
+            {pageNums[0] > 1 && (
+              <>
+                <a href={pageHref(1)} className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition">1</a>
+                {pageNums[0] > 2 && <span className="px-2 text-gray-400 text-sm">…</span>}
+              </>
+            )}
+
+            {/* Páginas del rango */}
+            {pageNums.map(p => (
+              <a
+                key={p}
+                href={pageHref(p)}
+                className={`px-3 py-2 border rounded-lg text-sm transition ${
+                  p === page
+                    ? 'bg-slate-900 border-slate-900 text-white font-semibold'
+                    : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                {p}
+              </a>
+            ))}
+
+            {/* Ellipsis + última página */}
+            {pageNums[pageNums.length - 1] < totalPages && (
+              <>
+                {pageNums[pageNums.length - 1] < totalPages - 1 && <span className="px-2 text-gray-400 text-sm">…</span>}
+                <a href={pageHref(totalPages)} className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition">{totalPages}</a>
+              </>
+            )}
+
+            {/* Siguiente */}
+            {page < totalPages ? (
+              <a
+                href={pageHref(page + 1)}
+                className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition"
+              >
+                →
+              </a>
+            ) : (
+              <span className="px-3 py-2 border border-gray-100 rounded-lg text-sm text-gray-300 cursor-not-allowed">→</span>
+            )}
+          </div>
         </div>
       )}
     </div>
