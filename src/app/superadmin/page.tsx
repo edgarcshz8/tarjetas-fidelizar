@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { signOut } from 'next-auth/react'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faCircleCheck } from '@fortawesome/free-solid-svg-icons'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -153,7 +155,7 @@ export default function SuperAdminPage() {
         <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-5">
           <div className="flex items-start justify-between">
             <div>
-              <p className="font-semibold text-green-800 mb-2">✅ Negocio creado exitosamente</p>
+              <p className="font-semibold text-green-800 mb-2 flex items-center gap-1.5"><FontAwesomeIcon icon={faCircleCheck} className="w-4 h-4 text-green-600" /> Negocio creado exitosamente</p>
               <div className="text-sm text-green-700 space-y-1">
                 <p><span className="font-medium">Negocio:</span> {result.businessName}</p>
                 <p><span className="font-medium">URL registro:</span> <code className="bg-green-100 px-1 rounded">/{result.slug}</code></p>

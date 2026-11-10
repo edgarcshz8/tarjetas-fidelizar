@@ -2,6 +2,9 @@
 
 import { useState } from 'react'
 import { Business, LoyaltyProgram } from '@prisma/client'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faLocationDot, faGift } from '@fortawesome/free-solid-svg-icons'
+import { faApple, faGoogle } from '@fortawesome/free-brands-svg-icons'
 
 interface Props {
   business: Business | null
@@ -346,7 +349,7 @@ export default function SettingsForm({ business, program }: Props) {
                     }}
                     className="text-xs text-slate-600 font-medium underline underline-offset-2 hover:text-slate-900 disabled:opacity-50"
                   >
-                    {geoLoading ? 'Obteniendo…' : '📍 Usar mi ubicación actual'}
+                    {geoLoading ? 'Obteniendo…' : <><FontAwesomeIcon icon={faLocationDot} className="w-3 h-3 mr-1" />Usar mi ubicación actual</>}
                   </button>
                 </div>
                 <p className="text-xs text-gray-400 mb-3">
@@ -433,7 +436,10 @@ export default function SettingsForm({ business, program }: Props) {
                     platform === pl ? 'bg-white text-slate-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  {pl === 'apple' ? '🍎 Apple Wallet' : '📱 Google Wallet'}
+                  {pl === 'apple'
+                    ? <><FontAwesomeIcon icon={faApple} className="w-3.5 h-3.5 mr-1" />Apple Wallet</>
+                    : <><FontAwesomeIcon icon={faGoogle} className="w-3.5 h-3.5 mr-1" />Google Wallet</>
+                  }
                 </button>
               ))}
             </div>
@@ -486,7 +492,7 @@ export default function SettingsForm({ business, program }: Props) {
               />
               <div className="flex justify-between text-[10px] text-gray-400 mt-1">
                 <span>Sin sellos</span>
-                <span>Premio listo 🎉</span>
+                <span>Premio listo <FontAwesomeIcon icon={faGift} className="w-3 h-3" /></span>
               </div>
             </div>
           </div>

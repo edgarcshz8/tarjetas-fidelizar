@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { generateQRDataURL } from '@/lib/qr'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
+import { faTriangleExclamation, faUsers, faStar, faGift, faClock } from '@fortawesome/free-solid-svg-icons'
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
@@ -28,7 +31,7 @@ export default async function DashboardPage() {
   } catch {
     return (
       <div className="flex flex-col items-center justify-center min-h-[40vh] text-center">
-        <p className="text-5xl mb-4">⚠️</p>
+        <FontAwesomeIcon icon={faTriangleExclamation} className="w-12 h-12 text-amber-500 mb-4" />
         <h2 className="text-xl font-semibold text-gray-800 mb-2">Error al cargar el dashboard</h2>
         <p className="text-gray-500 mb-6">No se pudieron obtener los datos. Intenta recargar la página.</p>
         <a
@@ -50,10 +53,10 @@ export default async function DashboardPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <StatCard label="Clientes" value={stats.totalCustomers} icon="👥" />
-        <StatCard label="Sellos Dados" value={stats.totalStamps} icon="⭐" />
-        <StatCard label="Premios Canjeados" value={stats.totalRewards} icon="🎁" />
-        <StatCard label="Premios Pendientes" value={stats.pendingRewards} icon="⏳" highlight={stats.pendingRewards > 0} />
+        <StatCard label="Clientes" value={stats.totalCustomers} icon={faUsers} />
+        <StatCard label="Sellos Dados" value={stats.totalStamps} icon={faStar} />
+        <StatCard label="Premios Canjeados" value={stats.totalRewards} icon={faGift} />
+        <StatCard label="Premios Pendientes" value={stats.pendingRewards} icon={faClock} highlight={stats.pendingRewards > 0} />
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
@@ -121,12 +124,14 @@ function StatCard({
 }: {
   label: string
   value: number
-  icon: string
+  icon: IconDefinition
   highlight?: boolean
 }) {
   return (
     <div className={`bg-white rounded-2xl shadow-sm border p-5 ${highlight ? 'border-amber-300 bg-amber-50' : 'border-gray-100'}`}>
-      <div className="text-2xl mb-1">{icon}</div>
+      <div className={`mb-1 ${highlight ? 'text-amber-600' : 'text-slate-500'}`}>
+        <FontAwesomeIcon icon={icon} className="w-5 h-5" />
+      </div>
       <div className={`text-3xl font-bold ${highlight ? 'text-amber-700' : 'text-gray-900'}`}>{value}</div>
       <div className="text-sm text-gray-500">{label}</div>
     </div>

@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faGift } from '@fortawesome/free-solid-svg-icons'
 
 export default async function CustomersPage({
   searchParams,
@@ -102,7 +104,7 @@ export default async function CustomersPage({
                 <td className="px-6 py-4">
                   {pass.rewardReady ? (
                     <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                      🎁 Premio listo
+                      <FontAwesomeIcon icon={faGift} className="w-3 h-3" /> Premio listo
                     </span>
                   ) : (
                     <span className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">
