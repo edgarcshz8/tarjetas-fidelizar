@@ -35,10 +35,7 @@ async function main() {
     },
   })
 
-  console.log('\n✅ Super admin creado / actualizado:')
-  console.log(`   Email:      ${user.email}`)
-  console.log(`   Contraseña: ${SUPERADMIN_PASSWORD}`)
-  console.log(`   URL:        /admin/login\n`)
+  console.log(`[superadmin] upsert OK — ${user.email}`)
 }
 
 main()
