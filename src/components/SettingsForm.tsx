@@ -57,9 +57,13 @@ export default function SettingsForm({ business, program }: Props) {
   })
 
   const [businessData, setBusinessData] = useState({
-    name: business?.name ?? '',
-    slug: business?.slug ?? '',
+    name:         business?.name         ?? '',
+    slug:         business?.slug         ?? '',
+    latitude:     business?.latitude     ?? null as number | null,
+    longitude:    business?.longitude    ?? null as number | null,
+    locationName: business?.locationName ?? '',
   })
+  const [geoLoading, setGeoLoading] = useState(false)
 
   const [section,       setSection]       = useState<FormSection>('programa')
   const [platform,      setPlatform]      = useState<PreviewPlatform>('apple')
@@ -88,7 +92,12 @@ export default function SettingsForm({ business, program }: Props) {
         fetch('/api/admin/businesses', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: businessData.name }),
+          body: JSON.stringify({
+            name:         businessData.name,
+            latitude:     businessData.latitude,
+            longitude:    businessData.longitude,
+            locationName: businessData.locationName || null,
+          }),
         }),
       ])
 
@@ -312,6 +321,79 @@ export default function SettingsForm({ business, program }: Props) {
                   {typeof window !== 'undefined' ? window.location.origin : ''}/{businessData.slug}
                 </div>
               </Field>
+
+              {/* ── Ubicación del negocio (geofencing) ── */}
+              <div className="border-t border-gray-100 pt-5">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-sm font-medium text-gray-700">Ubicación del negocio</p>
+                  <button
+                    type="button"
+                    disabled={geoLoading}
+                    onClick={() => {
+                      if (!navigator.geolocation) return
+                      setGeoLoading(true)
+                      navigator.geolocation.getCurrentPosition(
+                        pos => {
+                          setBusinessData(d => ({
+                            ...d,
+                            latitude:  Math.round(pos.coords.latitude  * 1e6) / 1e6,
+                            longitude: Math.round(pos.coords.longitude * 1e6) / 1e6,
+                          }))
+                          setGeoLoading(false)
+                        },
+                        () => setGeoLoading(false),
+                      )
+                    }}
+                    className="text-xs text-slate-600 font-medium underline underline-offset-2 hover:text-slate-900 disabled:opacity-50"
+                  >
+                    {geoLoading ? 'Obteniendo…' : '📍 Usar mi ubicación actual'}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mb-3">
+                  Cuando el cliente esté cerca, la tarjeta aparece automáticamente en su pantalla de bloqueo (Apple y Google Wallet).
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Latitud">
+                    <input
+                      type="number"
+                      step="0.000001"
+                      min="-90" max="90"
+                      value={businessData.latitude ?? ''}
+                      onChange={e => setBusinessData(d => ({
+                        ...d,
+                        latitude: e.target.value ? parseFloat(e.target.value) : null,
+                      }))}
+                      className="input text-sm"
+                      placeholder="Ej: -33.447487"
+                    />
+                  </Field>
+                  <Field label="Longitud">
+                    <input
+                      type="number"
+                      step="0.000001"
+                      min="-180" max="180"
+                      value={businessData.longitude ?? ''}
+                      onChange={e => setBusinessData(d => ({
+                        ...d,
+                        longitude: e.target.value ? parseFloat(e.target.value) : null,
+                      }))}
+                      className="input text-sm"
+                      placeholder="Ej: -70.673676"
+                    />
+                  </Field>
+                </div>
+                <div className="mt-3">
+                  <Field label="Texto de notificación" hint="Mensaje que ve el cliente al acercarse">
+                    <input
+                      type="text"
+                      value={businessData.locationName}
+                      onChange={e => setBusinessData(d => ({ ...d, locationName: e.target.value }))}
+                      className="input"
+                      placeholder={`¡Visita ${businessData.name || 'el negocio'}!`}
+                    />
+                  </Field>
+                </div>
+              </div>
             </div>
           )}
 

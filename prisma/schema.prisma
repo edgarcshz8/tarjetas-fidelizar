@@ -17,6 +17,9 @@ model Business {
   primaryColor   String   @default("#1a1a2e")
   secondaryColor String   @default("#ffffff")
   accentColor    String   @default("#e94560")
+  latitude       Float?
+  longitude      Float?
+  locationName   String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -53,11 +56,12 @@ model LoyaltyProgram {
 }
 
 model Customer {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   name      String
   email     String
   phone     String?
-  createdAt DateTime @default(now())
+  birthDate DateTime?
+  createdAt DateTime  @default(now())
 
   passes CustomerPass[]
 

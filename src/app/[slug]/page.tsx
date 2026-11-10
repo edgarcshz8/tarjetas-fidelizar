@@ -23,7 +23,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [downloadData, setDownloadData] = useState<DownloadData | null>(null)
-  const [form, setForm] = useState({ name: '', email: '', phone: '' })
+  const [form, setForm] = useState({ name: '', email: '', phone: '', birthDate: '' })
   const [acceptTerms, setAcceptTerms] = useState(false)
   const [acceptPrivacy, setAcceptPrivacy] = useState(false)
 
@@ -118,6 +118,20 @@ export default function RegisterPage() {
                 onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent transition"
                 placeholder="+56 9 1234 5678"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Fecha de nacimiento
+                <span className="ml-1 text-xs font-normal text-gray-400">(opcional — para recibir un regalo en tu cumpleaños)</span>
+              </label>
+              <input
+                type="date"
+                value={form.birthDate}
+                onChange={e => setForm(f => ({ ...f, birthDate: e.target.value }))}
+                max={new Date().toISOString().split('T')[0]}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent transition"
               />
             </div>
 

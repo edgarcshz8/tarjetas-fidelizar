@@ -7,7 +7,15 @@ import { LoyaltyProgram, CustomerPass, Customer } from '@prisma/client'
 
 export type PassData = CustomerPass & {
   customer: Customer
-  program: LoyaltyProgram & { business: { name: string; slug: string } }
+  program: LoyaltyProgram & {
+    business: {
+      name: string
+      slug: string
+      latitude?: number | null
+      longitude?: number | null
+      locationName?: string | null
+    }
+  }
 }
 
 // ─── Helpers de color ────────────────────────────────────────────────────────
@@ -314,5 +322,34 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
     altText:         `ID: ${serialNumber.slice(0, 8)}`,
   })
 
+  // ─── Geofencing: aparece en pantalla de bloqueo al acercarse al negocio ──────
+  const { latitude, longitude, locationName, name: businessName } = passData.program.business
+  if (latitude != null && longitude != null) {
+    ;(pass as any).locations = [
+      {
+        latitude,
+        longitude,
+        relevantText: locationName || `¡Visita ${businessName}!`,
+      },
+    ]
+  }
+
+  // ─── Fecha relevante: muestra el pase en pantalla de bloqueo en el cumpleaños ─
+  if (customer.birthDate) {
+    ;(pass as any).relevantDate = nextBirthdayISO(new Date(customer.birthDate))
+  }
+
   return pass.getAsBuffer()
+}
+
+// Calcula el próximo cumpleaños como string ISO para Apple Wallet relevantDate.
+function nextBirthdayISO(birthDate: Date): string {
+  const now  = new Date()
+  const bd   = birthDate
+  let next   = new Date(Date.UTC(now.getUTCFullYear(), bd.getUTCMonth(), bd.getUTCDate(), 9, 0, 0))
+  if (next <= now) {
+    next = new Date(Date.UTC(now.getUTCFullYear() + 1, bd.getUTCMonth(), bd.getUTCDate(), 9, 0, 0))
+  }
+  // Formato requerido por Apple: "2027-03-15T09:00+00:00"
+  return next.toISOString().replace('.000Z', '+00:00')
 }

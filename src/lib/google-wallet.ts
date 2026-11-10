@@ -5,7 +5,14 @@ import { getServiceAccountCredentials } from './google-credentials'
 
 export type GooglePassData = CustomerPass & {
   customer: Customer
-  program: LoyaltyProgram & { business: { name: string; slug: string } }
+  program: LoyaltyProgram & {
+    business: {
+      name: string
+      slug: string
+      latitude?: number | null
+      longitude?: number | null
+    }
+  }
 }
 
 const GOOGLE_WALLET_API = 'https://walletobjects.googleapis.com/walletobjects/v1'
@@ -31,7 +38,7 @@ export function buildLoyaltyClassId(programId: string): string {
 }
 
 export async function upsertLoyaltyClass(
-  program: LoyaltyProgram & { business: { name: string } }
+  program: LoyaltyProgram & { business: { name: string; latitude?: number | null; longitude?: number | null } }
 ): Promise<string> {
   const auth = getGoogleAuth()
   const client = await auth.getClient()
@@ -65,6 +72,13 @@ export async function upsertLoyaltyClass(
     contentDescription: {
       defaultValue: { language: 'es', value: program.business.name },
     },
+  }
+
+  // Geofencing: aparece en Google Wallet cuando el cliente está cerca
+  if (program.business.latitude != null && program.business.longitude != null) {
+    loyaltyClass.locations = [
+      { latitude: program.business.latitude, longitude: program.business.longitude },
+    ]
   }
 
   try {
@@ -271,4 +285,29 @@ export function generateSaveToWalletJwt(objectId: string): string {
 export function getSaveToWalletUrl(objectId: string): string {
   const token = generateSaveToWalletJwt(objectId)
   return `https://pay.google.com/gp/v/save/${token}`
+}
+
+// ─── NOTIFICACIÓN DE CUMPLEAÑOS ───────────────────────────────────────────────
+
+export async function pushBirthdayNotification(
+  googleObjectId: string,
+  customerName: string,
+  businessName: string,
+): Promise<void> {
+  const auth = getGoogleAuth()
+  const client = await auth.getClient()
+  const firstName = customerName.split(' ')[0]
+
+  await (client as any).request({
+    url: `${GOOGLE_WALLET_API}/loyaltyObject/${encodeURIComponent(googleObjectId)}/addMessage`,
+    method: 'POST',
+    data: {
+      message: {
+        header: `🎂 ¡Feliz cumpleaños, ${firstName}!`,
+        body: `${businessName} te desea un día increíble. ¡Visítanos para celebrar juntos!`,
+        id: `birthday_${Date.now()}`,
+        messageType: 'TEXT',
+      },
+    },
+  })
 }

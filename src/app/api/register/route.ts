@@ -10,6 +10,7 @@ const schema = z.object({
   name: z.string().min(1).max(100),
   email: z.string().email(),
   phone: z.string().optional(),
+  birthDate: z.string().optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -39,10 +40,20 @@ export async function POST(req: NextRequest) {
     }
 
     // Crear o recuperar cliente
+    const birthDate = data.birthDate ? new Date(data.birthDate) : undefined
     const customer = await prisma.customer.upsert({
       where: { email: data.email },
-      update: { name: data.name, phone: data.phone },
-      create: { name: data.name, email: data.email, phone: data.phone },
+      update: {
+        name: data.name,
+        phone: data.phone,
+        ...(birthDate ? { birthDate } : {}),
+      },
+      create: {
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        birthDate,
+      },
     })
 
     // Verificar si ya tiene un pase para este programa
