@@ -4,19 +4,24 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faGift } from '@fortawesome/free-solid-svg-icons'
+import PageSizeSelector from './PageSizeSelector'
 
-const PAGE_SIZE = 15
+const ALLOWED_SIZES = [10, 25, 50, 100]
+const DEFAULT_SIZE  = 25
 
 export default async function CustomersPage({
   searchParams,
 }: {
-  searchParams: { search?: string; page?: string }
+  searchParams: { search?: string; page?: string; pageSize?: string }
 }) {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/admin/login')
 
-  const search = searchParams.search || ''
-  const page  = Math.max(1, parseInt(searchParams.page || '1'))
+  const search   = searchParams.search || ''
+  const pageSize = ALLOWED_SIZES.includes(Number(searchParams.pageSize))
+    ? Number(searchParams.pageSize)
+    : DEFAULT_SIZE
+  const page     = Math.max(1, parseInt(searchParams.page || '1'))
 
   const whereFilter = {
     program: { businessId: session.user.businessId },
@@ -40,25 +45,25 @@ export default async function CustomersPage({
         program: { select: { name: true, stampsRequired: true } },
       },
       orderBy: { createdAt: 'desc' },
-      skip:  (page - 1) * PAGE_SIZE,
-      take:  PAGE_SIZE,
+      skip:  (page - 1) * pageSize,
+      take:  pageSize,
     }),
     prisma.customerPass.count({ where: whereFilter }),
   ])
 
-  const totalPages  = Math.max(1, Math.ceil(total / PAGE_SIZE))
-  const firstOnPage = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
-  const lastOnPage  = Math.min(page * PAGE_SIZE, total)
+  const totalPages  = Math.max(1, Math.ceil(total / pageSize))
+  const firstOnPage = total === 0 ? 0 : (page - 1) * pageSize + 1
+  const lastOnPage  = Math.min(page * pageSize, total)
 
   function pageHref(p: number) {
     const params = new URLSearchParams()
-    if (search) params.set('search', search)
+    if (search)   params.set('search',   search)
+    if (pageSize !== DEFAULT_SIZE) params.set('pageSize', String(pageSize))
     params.set('page', String(p))
     return `?${params.toString()}`
   }
 
-  // Show at most 5 page buttons centred around current page
-  const delta = 2
+  const delta    = 2
   const pageNums: number[] = []
   for (let p = Math.max(1, page - delta); p <= Math.min(totalPages, page + delta); p++) {
     pageNums.push(p)
@@ -79,6 +84,9 @@ export default async function CustomersPage({
 
       {/* Buscador */}
       <form method="GET" className="mb-6">
+        {pageSize !== DEFAULT_SIZE && (
+          <input type="hidden" name="pageSize" value={pageSize} />
+        )}
         <input
           type="text"
           name="search"
@@ -149,35 +157,38 @@ export default async function CustomersPage({
         )}
       </div>
 
-      {/* Paginación */}
-      {totalPages > 1 && (
-        <div className="mt-6 flex flex-col items-center gap-3">
-          <p className="text-sm text-gray-500">
-            Mostrando {firstOnPage}–{lastOnPage} de {total} clientes
-          </p>
+      {/* Footer: selector de tamaño + paginación */}
+      <div className="mt-6 flex flex-col items-center gap-4">
 
+        {/* Info + selector */}
+        <div className="flex flex-wrap items-center justify-between w-full gap-3">
+          <p className="text-sm text-gray-500">
+            {total === 0
+              ? 'Sin resultados'
+              : `Mostrando ${firstOnPage}–${lastOnPage} de ${total} clientes`}
+          </p>
+          <PageSizeSelector current={pageSize} />
+        </div>
+
+        {/* Botones de página */}
+        {totalPages > 1 && (
           <div className="flex items-center gap-1">
             {/* Anterior */}
             {page > 1 ? (
-              <a
-                href={pageHref(page - 1)}
-                className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition"
-              >
-                ←
-              </a>
+              <a href={pageHref(page - 1)} className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition">←</a>
             ) : (
-              <span className="px-3 py-2 border border-gray-100 rounded-lg text-sm text-gray-300 cursor-not-allowed">←</span>
+              <span className="px-3 py-2 border border-gray-100 rounded-lg text-sm text-gray-300 select-none">←</span>
             )}
 
             {/* Primera página + ellipsis */}
             {pageNums[0] > 1 && (
               <>
                 <a href={pageHref(1)} className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition">1</a>
-                {pageNums[0] > 2 && <span className="px-2 text-gray-400 text-sm">…</span>}
+                {pageNums[0] > 2 && <span className="px-1 text-gray-400 text-sm select-none">…</span>}
               </>
             )}
 
-            {/* Páginas del rango */}
+            {/* Rango central */}
             {pageNums.map(p => (
               <a
                 key={p}
@@ -195,25 +206,20 @@ export default async function CustomersPage({
             {/* Ellipsis + última página */}
             {pageNums[pageNums.length - 1] < totalPages && (
               <>
-                {pageNums[pageNums.length - 1] < totalPages - 1 && <span className="px-2 text-gray-400 text-sm">…</span>}
+                {pageNums[pageNums.length - 1] < totalPages - 1 && <span className="px-1 text-gray-400 text-sm select-none">…</span>}
                 <a href={pageHref(totalPages)} className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition">{totalPages}</a>
               </>
             )}
 
             {/* Siguiente */}
             {page < totalPages ? (
-              <a
-                href={pageHref(page + 1)}
-                className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition"
-              >
-                →
-              </a>
+              <a href={pageHref(page + 1)} className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition">→</a>
             ) : (
-              <span className="px-3 py-2 border border-gray-100 rounded-lg text-sm text-gray-300 cursor-not-allowed">→</span>
+              <span className="px-3 py-2 border border-gray-100 rounded-lg text-sm text-gray-300 select-none">→</span>
             )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
