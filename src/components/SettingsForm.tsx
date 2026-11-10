@@ -1,10 +1,20 @@
 'use client'
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import { Business, LoyaltyProgram } from '@prisma/client'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faLocationDot, faGift } from '@fortawesome/free-solid-svg-icons'
+import { faLocationDot, faGift, faMap, faXmark } from '@fortawesome/free-solid-svg-icons'
 import { faApple, faGoogle } from '@fortawesome/free-brands-svg-icons'
+
+const MapPicker = dynamic(() => import('./MapPicker'), {
+  ssr: false,
+  loading: () => (
+    <div style={{ height: 280, borderRadius: 12, background: '#f3f4f6', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <span className="text-sm text-gray-400">Cargando mapa…</span>
+    </div>
+  ),
+})
 
 interface Props {
   business: Business | null
@@ -67,6 +77,7 @@ export default function SettingsForm({ business, program }: Props) {
     locationName: business?.locationName ?? '',
   })
   const [geoLoading,    setGeoLoading]    = useState(false)
+  const [showMap,       setShowMap]       = useState(false)
   const [pushing,       setPushing]       = useState(false)
   const [pushResult,    setPushResult]    = useState<{ pushed: number; total: number } | null>(null)
 
@@ -365,32 +376,64 @@ export default function SettingsForm({ business, program }: Props) {
               <div className="border-t border-gray-100 pt-5">
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-sm font-medium text-gray-700">Ubicación del negocio</p>
-                  <button
-                    type="button"
-                    disabled={geoLoading}
-                    onClick={() => {
-                      if (!navigator.geolocation) return
-                      setGeoLoading(true)
-                      navigator.geolocation.getCurrentPosition(
-                        pos => {
-                          setBusinessData(d => ({
-                            ...d,
-                            latitude:  Math.round(pos.coords.latitude  * 1e6) / 1e6,
-                            longitude: Math.round(pos.coords.longitude * 1e6) / 1e6,
-                          }))
-                          setGeoLoading(false)
-                        },
-                        () => setGeoLoading(false),
-                      )
-                    }}
-                    className="text-xs text-slate-600 font-medium underline underline-offset-2 hover:text-slate-900 disabled:opacity-50"
-                  >
-                    {geoLoading ? 'Obteniendo…' : <><FontAwesomeIcon icon={faLocationDot} className="w-3 h-3 mr-1" />Usar mi ubicación actual</>}
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      disabled={geoLoading}
+                      onClick={() => {
+                        if (!navigator.geolocation) return
+                        setGeoLoading(true)
+                        navigator.geolocation.getCurrentPosition(
+                          pos => {
+                            setBusinessData(d => ({
+                              ...d,
+                              latitude:  Math.round(pos.coords.latitude  * 1e6) / 1e6,
+                              longitude: Math.round(pos.coords.longitude * 1e6) / 1e6,
+                            }))
+                            setShowMap(true)
+                            setGeoLoading(false)
+                          },
+                          () => setGeoLoading(false),
+                        )
+                      }}
+                      className="text-xs text-slate-600 font-medium underline underline-offset-2 hover:text-slate-900 disabled:opacity-50"
+                    >
+                      {geoLoading ? 'Obteniendo…' : <><FontAwesomeIcon icon={faLocationDot} className="w-3 h-3 mr-1" />Mi ubicación</>}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowMap(v => !v)}
+                      className="text-xs text-slate-600 font-medium underline underline-offset-2 hover:text-slate-900 flex items-center gap-1"
+                    >
+                      {showMap
+                        ? <><FontAwesomeIcon icon={faXmark} className="w-3 h-3" />Cerrar mapa</>
+                        : <><FontAwesomeIcon icon={faMap} className="w-3 h-3" />Seleccionar en mapa</>
+                      }
+                    </button>
+                  </div>
                 </div>
                 <p className="text-xs text-gray-400 mb-3">
-                  Cuando el cliente esté cerca, la tarjeta aparece automáticamente en su pantalla de bloqueo (Apple y Google Wallet).
+                  Cuando el cliente esté cerca, la tarjeta aparece automáticamente en su pantalla de bloqueo (Apple Wallet).
                 </p>
+
+                {/* Map picker */}
+                {showMap && (
+                  <div className="mb-3">
+                    <p className="text-xs text-gray-500 mb-2">
+                      Haz clic en el mapa o arrastra el marcador para seleccionar la ubicación.
+                    </p>
+                    <MapPicker
+                      latitude={businessData.latitude}
+                      longitude={businessData.longitude}
+                      onChange={(lat, lng) => {
+                        setBusinessData(d => ({ ...d, latitude: lat, longitude: lng }))
+                        clearFieldError('latitude')
+                        clearFieldError('longitude')
+                      }}
+                    />
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Latitud" error={fieldErrors.latitude}>
                     <input
