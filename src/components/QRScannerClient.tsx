@@ -143,11 +143,7 @@ export default function QRScannerClient() {
     e.preventDefault()
     const value = manualSerial.trim()
     if (!value) return
-    if (value.includes('@')) {
-      await processStamp({ email: value })
-    } else {
-      await processStamp({ serialNumber: value })
-    }
+    await processStamp({ serialNumber: value })
   }
 
   function reset() {
@@ -285,13 +281,13 @@ export default function QRScannerClient() {
       {/* Input manual */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <h3 className="font-semibold text-gray-900 mb-1">Ingreso Manual</h3>
-        <p className="text-gray-500 text-sm mb-4">Ingresa el email con el que el cliente se registró</p>
+        <p className="text-gray-500 text-sm mb-4">Ingresa el código que aparece en el QR de la tarjeta del cliente</p>
         <form onSubmit={handleManualSubmit} className="flex gap-3">
           <input
             type="text"
             value={manualSerial}
             onChange={e => setManualSerial(e.target.value)}
-            placeholder="email@cliente.com"
+            placeholder="Código del pase"
             className="flex-1 px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm"
           />
           <button
