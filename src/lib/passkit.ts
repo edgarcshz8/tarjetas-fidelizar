@@ -319,7 +319,7 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
     format:          'PKBarcodeFormatQR',
     message:         serialNumber,
     messageEncoding: 'iso-8859-1',
-    altText:         `ID: ${serialNumber.slice(0, 8)}`,
+    altText:         serialNumber,
   })
 
   // ─── Geofencing: aparece en pantalla de bloqueo al acercarse al negocio ──────

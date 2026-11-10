@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { upsertLoyaltyClass, createLoyaltyObject, buildObjectId, getSaveToWalletUrl } from '@/lib/google-wallet'
+import { generateUniquePassCode } from '@/lib/shortcode'
 
 export const runtime = 'nodejs'
 
@@ -66,8 +67,10 @@ export async function POST(req: NextRequest) {
 
     // ─── Crear pase si no existe ────────────────────────────────────────────
     if (!passRecord) {
+      const serialNumber = await generateUniquePassCode()
       passRecord = await prisma.customerPass.create({
         data: {
+          serialNumber,
           customerId: customer.id,
           programId: program.id,
           currentStamps: 0,
