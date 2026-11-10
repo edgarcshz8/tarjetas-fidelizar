@@ -73,18 +73,49 @@ export default function SettingsForm({ business, program }: Props) {
   const [previewStamps, setPreviewStamps] = useState(
     Math.max(1, Math.floor((program?.stampsRequired ?? 10) / 3))
   )
-  const [saving, setSaving] = useState(false)
-  const [saved,  setSaved]  = useState(false)
-  const [error,  setError]  = useState('')
+  const [saving,      setSaving]      = useState(false)
+  const [saved,       setSaved]       = useState(false)
+  const [error,       setError]       = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const p = programData
 
+  function validate(): Record<string, string> {
+    const errs: Record<string, string> = {}
+    if (!programData.name.trim())
+      errs.programName = 'El nombre del programa es obligatorio'
+    if (!programData.rewardDescription.trim())
+      errs.rewardDescription = 'La descripción del premio es obligatoria'
+    if (!businessData.name.trim())
+      errs.businessName = 'El nombre del negocio es obligatorio'
+    const hasLat = businessData.latitude !== null && businessData.latitude !== undefined
+    const hasLon = businessData.longitude !== null && businessData.longitude !== undefined
+    if (hasLat && !hasLon)
+      errs.longitude = 'Ingresa también la longitud para activar el geofencing'
+    if (hasLon && !hasLat)
+      errs.latitude  = 'Ingresa también la latitud para activar el geofencing'
+    return errs
+  }
+
+  function clearFieldError(key: string) {
+    setFieldErrors(prev => { const next = { ...prev }; delete next[key]; return next })
+  }
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
-    setSaving(true)
     setError('')
     setSaved(false)
 
+    const errs = validate()
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs)
+      if (errs.programName || errs.rewardDescription) setSection('programa')
+      else if (errs.businessName || errs.latitude || errs.longitude) setSection('negocio')
+      return
+    }
+    setFieldErrors({})
+
+    setSaving(true)
     try {
       const [progRes] = await Promise.all([
         fetch('/api/admin/programs', {
@@ -153,13 +184,12 @@ export default function SettingsForm({ business, program }: Props) {
           {/* ── Programa ── */}
           {section === 'programa' && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
-              <Field label="Nombre del programa">
+              <Field label="Nombre del programa" error={fieldErrors.programName}>
                 <input
                   type="text"
-                  required
                   value={p.name}
-                  onChange={e => setProgramData(d => ({ ...d, name: e.target.value }))}
-                  className="input"
+                  onChange={e => { setProgramData(d => ({ ...d, name: e.target.value })); clearFieldError('programName') }}
+                  className={`input${fieldErrors.programName ? ' input-error' : ''}`}
                   placeholder="Ej: Tarjeta Café & Club"
                 />
               </Field>
@@ -193,13 +223,12 @@ export default function SettingsForm({ business, program }: Props) {
                 </div>
               </Field>
 
-              <Field label="Premio al completar la tarjeta">
+              <Field label="Premio al completar la tarjeta" error={fieldErrors.rewardDescription}>
                 <input
                   type="text"
-                  required
                   value={p.rewardDescription}
-                  onChange={e => setProgramData(d => ({ ...d, rewardDescription: e.target.value }))}
-                  className="input"
+                  onChange={e => { setProgramData(d => ({ ...d, rewardDescription: e.target.value })); clearFieldError('rewardDescription') }}
+                  className={`input${fieldErrors.rewardDescription ? ' input-error' : ''}`}
                   placeholder="Ej: 1 café de tu elección completamente gratis"
                 />
               </Field>
@@ -308,12 +337,12 @@ export default function SettingsForm({ business, program }: Props) {
           {/* ── Negocio ── */}
           {section === 'negocio' && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
-              <Field label="Nombre del negocio">
+              <Field label="Nombre del negocio" error={fieldErrors.businessName}>
                 <input
                   type="text"
                   value={businessData.name}
-                  onChange={e => setBusinessData(d => ({ ...d, name: e.target.value }))}
-                  className="input"
+                  onChange={e => { setBusinessData(d => ({ ...d, name: e.target.value })); clearFieldError('businessName') }}
+                  className={`input${fieldErrors.businessName ? ' input-error' : ''}`}
                 />
               </Field>
               <Field
@@ -356,31 +385,25 @@ export default function SettingsForm({ business, program }: Props) {
                   Cuando el cliente esté cerca, la tarjeta aparece automáticamente en su pantalla de bloqueo (Apple y Google Wallet).
                 </p>
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Latitud">
+                  <Field label="Latitud" error={fieldErrors.latitude}>
                     <input
                       type="number"
                       step="0.000001"
                       min="-90" max="90"
                       value={businessData.latitude ?? ''}
-                      onChange={e => setBusinessData(d => ({
-                        ...d,
-                        latitude: e.target.value ? parseFloat(e.target.value) : null,
-                      }))}
-                      className="input text-sm"
+                      onChange={e => { setBusinessData(d => ({ ...d, latitude: e.target.value ? parseFloat(e.target.value) : null })); clearFieldError('latitude') }}
+                      className={`input text-sm${fieldErrors.latitude ? ' input-error' : ''}`}
                       placeholder="Ej: -33.447487"
                     />
                   </Field>
-                  <Field label="Longitud">
+                  <Field label="Longitud" error={fieldErrors.longitude}>
                     <input
                       type="number"
                       step="0.000001"
                       min="-180" max="180"
                       value={businessData.longitude ?? ''}
-                      onChange={e => setBusinessData(d => ({
-                        ...d,
-                        longitude: e.target.value ? parseFloat(e.target.value) : null,
-                      }))}
-                      className="input text-sm"
+                      onChange={e => { setBusinessData(d => ({ ...d, longitude: e.target.value ? parseFloat(e.target.value) : null })); clearFieldError('longitude') }}
+                      className={`input text-sm${fieldErrors.longitude ? ' input-error' : ''}`}
                       placeholder="Ej: -70.673676"
                     />
                   </Field>
@@ -517,6 +540,13 @@ export default function SettingsForm({ business, program }: Props) {
           outline: none;
           box-shadow: 0 0 0 2px #64748b;
         }
+        .input-error {
+          border-color: #f87171;
+          background-color: #fff8f8;
+        }
+        .input-error:focus {
+          box-shadow: 0 0 0 2px #f87171;
+        }
       `}</style>
     </form>
   )
@@ -525,17 +555,21 @@ export default function SettingsForm({ business, program }: Props) {
 // ─── Shared sub-components ────────────────────────────────────────────────────
 
 function Field({
-  label, hint, children,
+  label, hint, error, children,
 }: {
   label: string
   hint?: string
+  error?: string
   children: React.ReactNode
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <label className={`block text-sm font-medium mb-1 ${error ? 'text-red-600' : 'text-gray-700'}`}>{label}</label>
       {children}
-      {hint && <p className="mt-1 text-xs text-gray-400">{hint}</p>}
+      {error
+        ? <p className="mt-1 text-xs text-red-600 flex items-center gap-1">⚠ {error}</p>
+        : hint && <p className="mt-1 text-xs text-gray-400">{hint}</p>
+      }
     </div>
   )
 }
