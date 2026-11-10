@@ -35,7 +35,7 @@ async function main() {
     },
   })
 
-  console.log(`[superadmin] upsert OK — ${user.email}`)
+  console.log('[superadmin] upsert OK')
 }
 
 main()
