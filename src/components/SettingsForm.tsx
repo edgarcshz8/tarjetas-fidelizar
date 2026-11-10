@@ -66,7 +66,9 @@ export default function SettingsForm({ business, program }: Props) {
     longitude:    business?.longitude    ?? null as number | null,
     locationName: business?.locationName ?? '',
   })
-  const [geoLoading, setGeoLoading] = useState(false)
+  const [geoLoading,    setGeoLoading]    = useState(false)
+  const [pushing,       setPushing]       = useState(false)
+  const [pushResult,    setPushResult]    = useState<{ pushed: number; total: number } | null>(null)
 
   const [section,       setSection]       = useState<FormSection>('programa')
   const [platform,      setPlatform]      = useState<PreviewPlatform>('apple')
@@ -424,6 +426,39 @@ export default function SettingsForm({ business, program }: Props) {
                     />
                   </Field>
                 </div>
+
+                {/* Push updates to existing passes */}
+                {(businessData.latitude != null && businessData.longitude != null) && (
+                  <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+                    <p className="text-sm font-medium text-blue-800 mb-1">Clientes con tarjeta existente</p>
+                    <p className="text-xs text-blue-600 mb-3">
+                      Las tarjetas ya descargadas no reflejan el geofencing automáticamente. Presiona el botón para enviar una actualización a todos los dispositivos registrados.
+                    </p>
+                    <button
+                      type="button"
+                      disabled={pushing}
+                      onClick={async () => {
+                        setPushing(true)
+                        setPushResult(null)
+                        try {
+                          const res = await fetch('/api/admin/push-updates', { method: 'POST' })
+                          const data = await res.json()
+                          if (res.ok) setPushResult({ pushed: data.pushed, total: data.total })
+                        } finally {
+                          setPushing(false)
+                        }
+                      }}
+                      className="px-4 py-2 bg-blue-700 text-white text-sm font-semibold rounded-lg hover:bg-blue-800 transition disabled:opacity-50"
+                    >
+                      {pushing ? 'Enviando actualizaciones…' : 'Actualizar tarjetas existentes'}
+                    </button>
+                    {pushResult && (
+                      <p className="mt-2 text-xs text-blue-700 font-medium">
+                        ✓ Actualización enviada a {pushResult.pushed} de {pushResult.total} tarjetas
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}
