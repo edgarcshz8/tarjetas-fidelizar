@@ -105,12 +105,6 @@ export default function LoginForm() {
             </button>
           </form>
 
-          <p className="mt-5 text-center text-sm text-gray-500">
-            ¿No tienes cuenta?{' '}
-            <a href="/register-business" className="font-semibold text-slate-700 hover:underline">
-              Registra tu negocio
-            </a>
-          </p>
         </div>
       </div>
     </div>
