@@ -24,6 +24,9 @@ export default function RegisterPage() {
   const [errorMsg, setErrorMsg] = useState('')
   const [downloadData, setDownloadData] = useState<DownloadData | null>(null)
   const [form, setForm] = useState({ name: '', email: '', phone: '', birthDate: '' })
+  const [birthDay,   setBirthDay]   = useState('')
+  const [birthMonth, setBirthMonth] = useState('')
+  const [birthYear,  setBirthYear]  = useState('')
   const [acceptTerms, setAcceptTerms] = useState(false)
   const [acceptPrivacy, setAcceptPrivacy] = useState(false)
 
@@ -124,15 +127,60 @@ export default function RegisterPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Fecha de nacimiento
-                <span className="ml-1 text-xs font-normal text-gray-400">(opcional — para recibir un regalo en tu cumpleaños)</span>
+                <span className="ml-1 text-xs font-normal text-gray-400">(opcional — para recibir un regalo en tu cumpleaños 🎂)</span>
               </label>
-              <input
-                type="date"
-                value={form.birthDate}
-                onChange={e => setForm(f => ({ ...f, birthDate: e.target.value }))}
-                max={new Date().toISOString().split('T')[0]}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent transition"
-              />
+              <div className="grid grid-cols-3 gap-2">
+                {/* Mes */}
+                <select
+                  value={birthMonth}
+                  onChange={e => {
+                    setBirthMonth(e.target.value)
+                    const d = birthDay, y = birthYear, m = e.target.value
+                    setForm(f => ({ ...f, birthDate: d && y && m ? `${y}-${m}-${d.padStart(2,'0')}` : '' }))
+                  }}
+                  className="w-full px-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent transition bg-white text-gray-700 appearance-none"
+                  style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E\")", backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', paddingRight: '28px' }}
+                >
+                  <option value="">Mes</option>
+                  {['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].map((m, i) => (
+                    <option key={i} value={String(i + 1).padStart(2, '0')}>{m}</option>
+                  ))}
+                </select>
+
+                {/* Día */}
+                <select
+                  value={birthDay}
+                  onChange={e => {
+                    setBirthDay(e.target.value)
+                    const d = e.target.value, y = birthYear, m = birthMonth
+                    setForm(f => ({ ...f, birthDate: d && y && m ? `${y}-${m}-${d.padStart(2,'0')}` : '' }))
+                  }}
+                  className="w-full px-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent transition bg-white text-gray-700 appearance-none"
+                  style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E\")", backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', paddingRight: '28px' }}
+                >
+                  <option value="">Día</option>
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                    <option key={d} value={String(d)}>{d}</option>
+                  ))}
+                </select>
+
+                {/* Año */}
+                <select
+                  value={birthYear}
+                  onChange={e => {
+                    setBirthYear(e.target.value)
+                    const d = birthDay, y = e.target.value, m = birthMonth
+                    setForm(f => ({ ...f, birthDate: d && y && m ? `${y}-${m}-${d.padStart(2,'0')}` : '' }))
+                  }}
+                  className="w-full px-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent transition bg-white text-gray-700 appearance-none"
+                  style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E\")", backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', paddingRight: '28px' }}
+                >
+                  <option value="">Año</option>
+                  {Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* Checkboxes legales */}
