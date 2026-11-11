@@ -325,18 +325,16 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
   // ─── Geofencing: aparece en pantalla de bloqueo al acercarse al negocio ──────
   const { latitude, longitude, locationName, name: businessName } = passData.program.business
   if (latitude != null && longitude != null) {
-    ;(pass as any).locations = [
-      {
-        latitude,
-        longitude,
-        relevantText: locationName || `¡Visita ${businessName}!`,
-      },
-    ]
+    pass.setLocations({
+      latitude,
+      longitude,
+      relevantText: locationName || `¡Visita ${businessName}!`,
+    })
   }
 
   // ─── Fecha relevante: muestra el pase en pantalla de bloqueo en el cumpleaños ─
   if (customer.birthDate) {
-    ;(pass as any).relevantDate = nextBirthdayISO(new Date(customer.birthDate))
+    pass.setRelevantDates([{ relevantDate: nextBirthdayISO(new Date(customer.birthDate)) }])
   }
 
   return pass.getAsBuffer()
