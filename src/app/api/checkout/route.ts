@@ -41,6 +41,15 @@ interface MpPreferenceResponse {
 // ─── Handler ─────────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  try {
+    return await handleCheckout(request)
+  } catch (err) {
+    console.error('[checkout]', err)
+    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
+  }
+}
+
+async function handleCheckout(request: NextRequest): Promise<NextResponse> {
   let body: CheckoutRequestBody
 
   try {

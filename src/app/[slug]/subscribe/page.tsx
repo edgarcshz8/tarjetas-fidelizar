@@ -21,6 +21,25 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 
+// ─── Tipo de plan desde la API ────────────────────────────────────────────────
+
+interface DbPlan {
+  id: string
+  name: string
+  priceClp: number
+  intervalDays: number
+}
+
+// Features de cada plan (copy de marketing — no viene de la DB)
+const PLAN_FEATURES: Record<string, string[]> = {
+  'Básico': ['1 programa de fidelización', 'Hasta 500 clientes', 'Apple Wallet + Google Wallet'],
+  'Pro':    ['Programas ilimitados', 'Clientes ilimitados', 'Apple Wallet + Google Wallet', 'Notificaciones push'],
+}
+
+function featuresForPlan(name: string): string[] {
+  return PLAN_FEATURES[name] ?? []
+}
+
 // ─── Tipos del SDK de MP Bricks ──────────────────────────────────────────────
 
 declare global {
@@ -90,37 +109,16 @@ interface MpFormData {
   }
 }
 
-// ─── Props del componente ─────────────────────────────────────────────────────
-
-interface SubscribePageProps {
-  // Recibido por Next.js como params de la ruta dinámica
-}
-
-// ─── Planes disponibles (en producción: fetchear desde la API) ────────────────
-
-const AVAILABLE_PLANS = [
-  {
-    id: 'plan_basico',
-    name: 'Básico',
-    priceClp: 15000,
-    features: ['1 programa de fidelización', 'Hasta 500 clientes', 'Apple Wallet + Google Wallet'],
-  },
-  {
-    id: 'plan_pro',
-    name: 'Pro',
-    priceClp: 29000,
-    features: ['Programas ilimitados', 'Clientes ilimitados', 'Apple Wallet + Google Wallet', 'Notificaciones push'],
-  },
-]
-
 // ─── Componente principal ────────────────────────────────────────────────────
 
-export default function SubscribePage(_props: SubscribePageProps) {
+export default function SubscribePage() {
   const params = useParams()
   const slug = params?.slug as string
 
+  const [plans, setPlans] = useState<DbPlan[]>([])
+  const [plansLoading, setPlansLoading] = useState(true)
   const [step, setStep] = useState<'plan' | 'payment' | 'success' | 'error'>('plan')
-  const [selectedPlan, setSelectedPlan] = useState<(typeof AVAILABLE_PLANS)[0] | null>(null)
+  const [selectedPlan, setSelectedPlan] = useState<DbPlan | null>(null)
   const [errorMsg, setErrorMsg] = useState('')
   const [loading, setLoading] = useState(false)
   const [preferenceId, setPreferenceId] = useState<string | null>(null)
@@ -129,6 +127,15 @@ export default function SubscribePage(_props: SubscribePageProps) {
 
   const brickControllerRef = useRef<MpBrickController | null>(null)
   const sdkLoadedRef = useRef(false)
+
+  // ── Cargar planes desde la API ────────────────────────────────────────────
+  useEffect(() => {
+    fetch('/api/public/plans')
+      .then(r => r.json())
+      .then((data: DbPlan[]) => setPlans(data))
+      .catch(() => setPlans([]))
+      .finally(() => setPlansLoading(false))
+  }, [])
 
   // ── Limpiar Brick al desmontar ─────────────────────────────────────────────
   useEffect(() => {
@@ -249,12 +256,19 @@ export default function SubscribePage(_props: SubscribePageProps) {
         }),
       })
 
-      if (!res.ok) {
-        const err = (await res.json()) as { error?: string }
-        throw new Error(err.error ?? 'Error al iniciar el pago')
+      const rawText = await res.text()
+      let resData: { error?: string; preferenceId?: string; initPoint?: string }
+      try {
+        resData = JSON.parse(rawText)
+      } catch {
+        throw new Error(`Error inesperado del servidor (HTTP ${res.status})`)
       }
 
-      const data = (await res.json()) as { preferenceId: string; initPoint: string }
+      if (!res.ok) {
+        throw new Error(resData.error ?? `Error al iniciar el pago (HTTP ${res.status})`)
+      }
+
+      const data = resData as { preferenceId: string; initPoint: string }
       setPreferenceId(data.preferenceId)
       setStep('payment')
     } catch (err) {
@@ -357,8 +371,18 @@ export default function SubscribePage(_props: SubscribePageProps) {
         </div>
 
         {/* Selección de planes */}
+        {plansLoading ? (
+          <div className="flex justify-center py-12">
+            <svg className="animate-spin h-8 w-8 text-white/50" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          </div>
+        ) : plans.length === 0 ? (
+          <p className="text-center text-slate-400 py-8">No hay planes disponibles en este momento.</p>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          {AVAILABLE_PLANS.map((plan) => (
+          {plans.map((plan) => (
             <button
               key={plan.id}
               onClick={() => setSelectedPlan(plan)}
@@ -374,7 +398,7 @@ export default function SubscribePage(_props: SubscribePageProps) {
                 <span className="text-sm font-normal ml-1">CLP/mes</span>
               </p>
               <ul className="space-y-1">
-                {plan.features.map((f) => (
+                {featuresForPlan(plan.name).map((f) => (
                   <li key={f} className="text-sm flex items-center gap-2">
                     <svg className="w-4 h-4 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -386,6 +410,7 @@ export default function SubscribePage(_props: SubscribePageProps) {
             </button>
           ))}
         </div>
+        )}
 
         {/* Datos del pagador */}
         {selectedPlan && (

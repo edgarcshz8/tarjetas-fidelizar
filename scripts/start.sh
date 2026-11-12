@@ -9,6 +9,22 @@ echo "[start] ── Applying database migrations ──────────
 npx prisma migrate deploy
 echo "[start] migrate deploy: OK"
 
+# ── Schema drift check ──────────────────────────────────────────────────────
+# Fails the container if schema.prisma has models/fields that no migration
+# covers. Without this, P2021 errors only surface at request time.
+echo "[start] ── Checking for unapplied schema changes ─────────────────────"
+if npx prisma migrate diff \
+     --from-local-db \
+     --to-schema-datamodel prisma/schema.prisma \
+     --exit-code 2>/dev/null; then
+  echo "[start] schema drift check: OK (no diff)"
+else
+  echo "[start] ERROR: schema.prisma has changes not covered by a migration."
+  echo "[start]   Run 'prisma migrate dev' locally, commit the new migration,"
+  echo "[start]   and redeploy."
+  exit 1
+fi
+
 # ── Failsafe: add new columns with IF NOT EXISTS ────────────────────────────
 # Runs after migrate deploy. Safe to execute on every startup:
 # PostgreSQL silently skips the ALTER if the column already exists.

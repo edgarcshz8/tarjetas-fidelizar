@@ -63,6 +63,19 @@ async function main() {
     },
   })
 
+  // ─── Planes de suscripción SaaS ───────────────────────────────────────────
+  // IDs estables para que el seed sea idempotente y el checkout pueda usarlos.
+  await prisma.plan.upsert({
+    where: { id: 'plan-basico' },
+    update: { name: 'Básico', priceClp: 15000, isActive: true },
+    create: { id: 'plan-basico', name: 'Básico', priceClp: 15000, intervalDays: 30, isActive: true },
+  })
+  await prisma.plan.upsert({
+    where: { id: 'plan-pro' },
+    update: { name: 'Pro', priceClp: 29000, isActive: true },
+    create: { id: 'plan-pro', name: 'Pro', priceClp: 29000, intervalDays: 30, isActive: true },
+  })
+
   console.log('Seed completado:')
   console.log(`  Super admin: edgar.cshz8@gmail.com / ${superAdminPassword}  → /superadmin`)
   console.log(`  Business: ${business.name} (slug: ${business.slug})`)

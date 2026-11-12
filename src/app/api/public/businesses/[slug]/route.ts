@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 // GET /api/public/businesses/[slug]
 // Endpoint público — devuelve solo los campos mínimos necesarios para la página de suscripción.
