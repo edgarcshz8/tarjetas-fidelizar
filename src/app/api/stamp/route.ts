@@ -70,6 +70,31 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  // Límite: 1 sello por tarjeta por día calendario en hora Chile (America/Santiago)
+  // El cálculo del offset usa Intl para manejar correctamente DST (UTC-3 / UTC-4)
+  const now = new Date()
+  const p = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Santiago',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+  }).formatToParts(now).reduce<Record<string, string>>((r, x) => {
+    if (x.type !== 'literal') r[x.type] = x.value
+    return r
+  }, {})
+  const offsetMs = now.getTime() - Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second)
+  const todayStart = new Date(Date.UTC(+p.year, +p.month - 1, +p.day) + offsetMs)
+
+  const stampToday = await prisma.stamp.findFirst({
+    where: { passId: passRecord.id, createdAt: { gte: todayStart } },
+  })
+  if (stampToday) {
+    return NextResponse.json(
+      { error: 'Esta tarjeta ya recibió su sello de hoy. Vuelve mañana.' },
+      { status: 429 }
+    )
+  }
+
   // Incremento atómico
   const updatedPass = await prisma.$transaction(async tx => {
     const pass = await tx.customerPass.update({

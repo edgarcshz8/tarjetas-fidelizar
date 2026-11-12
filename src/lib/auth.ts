@@ -7,6 +7,10 @@ import { checkLoginRateLimit, recordLoginFailure, resetLoginAttempts } from '@/l
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
+    maxAge: 10 * 365 * 24 * 60 * 60, // 10 años
+  },
+  jwt: {
+    maxAge: 10 * 365 * 24 * 60 * 60, // 10 años
   },
   pages: {
     signIn: '/admin/login',
