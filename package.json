@@ -30,6 +30,7 @@
     "jsonwebtoken": "^9.0.2",
     "jsqr": "^1.4.0",
     "leaflet": "^1.9.4",
+    "mercadopago": "^2.13.0",
     "next": "^14.0.4",
     "next-auth": "^4.24.5",
     "passkit-generator": "^3.3.0",
@@ -43,8 +44,8 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
-    "@types/leaflet": "^1.9.22",
     "@types/jsonwebtoken": "^9.0.5",
+    "@types/leaflet": "^1.9.22",
     "@types/node": "^20",
     "@types/qrcode": "^1.5.5",
     "@types/react": "^18",

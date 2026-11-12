@@ -23,8 +23,9 @@ model Business {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  programs LoyaltyProgram[]
-  users    User[]
+  programs      LoyaltyProgram[]
+  users         User[]
+  subscriptions Subscription[]
 
   @@map("businesses")
 }
@@ -134,4 +135,65 @@ model User {
   stamps   Stamp[]
 
   @@map("users")
+}
+
+// ─── Pagos / Suscripciones ────────────────────────────────────────────────────
+
+// Planes de suscripción disponibles en la plataforma
+model Plan {
+  id            String         @id @default(cuid())
+  name          String         // ej: "Básico", "Pro"
+  priceClp      Int            // Precio en CLP (moneda de cero decimales)
+  intervalDays  Int            @default(30)
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+// Suscripción activa de cada Business al servicio SaaS
+model Subscription {
+  id                 String             @id @default(cuid())
+  businessId         String
+  planId             String
+  status             SubscriptionStatus @default(PENDING)
+  // Identificadores de Mercado Pago
+  mpSubscriptionId   String?            // ID interno MP (preapproval / payment_id)
+  mpPreapprovalId    String?            // ID del preapproval plan en MP
+  mpPayerId          String?            // MP payer user_id
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  canceledAt         DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  plan     Plan     @relation(fields: [planId], references: [id])
+
+  @@index([businessId])
+  @@index([mpSubscriptionId])
+  @@map("subscriptions")
+}
+
+enum SubscriptionStatus {
+  PENDING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  PAUSED
+}
+
+// Deduplicación de webhooks — Rule 9: replay protection
+// Almacena cada event_id recibido para evitar reprocesar el mismo evento
+model WebhookEvent {
+  id          String   @id @default(cuid())
+  // Rule 9: event_id único para deduplicación — strategy: both
+  eventId     String   @unique // x-request-id del webhook de MP
+  eventType   String   // ej: "payment", "subscription_preapproval"
+  processedAt DateTime @default(now())
+
+  @@index([eventId])
+  @@map("webhook_events")
 }

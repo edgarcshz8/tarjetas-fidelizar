@@ -1,0 +1,18 @@
+{
+  "_comment": "PCI DSS 4.0.1 req. 6.4.3 — Inventario de scripts que corren en páginas de pago.",
+  "_instructions": "Revisar este archivo cada vez que se agrega, modifica o elimina un script en una página de pago. La revisión periódica es el control 6.4.3, no solo el archivo.",
+  "_last_reviewed": "2026-11-12",
+  "_reviewed_by": "edgar.cshz8@gmail.com",
+  "scripts": [
+    {
+      "src": "https://sdk.mercadopago.com/js/v2",
+      "purpose": "MP Bricks SDK — tokenización de tarjeta del lado de Mercado Pago. El PAN y CVV nunca salen del iframe de MP ni pasan por nuestros servidores.",
+      "justification": "Proveedor de servicios de pago (PSP). Requerido para renderizar el Payment Brick que tokeniza los datos de tarjeta de forma segura en un iframe aislado de MP.",
+      "authorised_by": "edgar.cshz8@gmail.com",
+      "loaded_in": ["src/app/[slug]/subscribe/page.tsx"],
+      "load_method": "dynamic — createElement('script') en useEffect, solo cuando step === 'payment'",
+      "integrity": null,
+      "_integrity_note": "Mercado Pago no publica hashes SRI para su SDK (el bundle es versionado dinámicamente). Mitigación: el script se carga únicamente desde sdk.mercadopago.com bajo TLS 1.2+. Revisar disponibilidad de SRI en cada actualización mayor del SDK."
+    }
+  ]
+}
