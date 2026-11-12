@@ -228,8 +228,8 @@ export default function SubscribePage(_props: SubscribePageProps) {
     setErrorMsg('')
 
     try {
-      // Buscar el businessId por slug
-      const bizRes = await fetch(`/api/admin/businesses?slug=${encodeURIComponent(slug)}`)
+      // Buscar el businessId por slug usando el endpoint público
+      const bizRes = await fetch(`/api/public/businesses/${encodeURIComponent(slug)}`)
       if (!bizRes.ok) {
         throw new Error('No se encontró el negocio')
       }
