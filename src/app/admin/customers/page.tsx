@@ -103,6 +103,9 @@ export default async function CustomersPage({
             <tr>
               <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Cliente</th>
               <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell">Email</th>
+              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase hidden lg:table-cell">Teléfono</th>
+              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase hidden lg:table-cell">F. Nacimiento</th>
+              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase hidden lg:table-cell">F. Inscripción</th>
               <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Sellos</th>
               <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell">Premios</th>
               <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Estado</th>
@@ -116,6 +119,17 @@ export default async function CustomersPage({
                   <p className="text-sm text-gray-500 md:hidden">{pass.customer.email}</p>
                 </td>
                 <td className="px-6 py-4 text-gray-600 hidden md:table-cell">{pass.customer.email}</td>
+                <td className="px-6 py-4 text-gray-600 hidden lg:table-cell">
+                  {pass.customer.phone ?? <span className="text-gray-300">—</span>}
+                </td>
+                <td className="px-6 py-4 text-gray-600 hidden lg:table-cell">
+                  {pass.customer.birthDate
+                    ? new Date(pass.customer.birthDate).toLocaleDateString('es-CL')
+                    : <span className="text-gray-300">—</span>}
+                </td>
+                <td className="px-6 py-4 text-gray-600 hidden lg:table-cell">
+                  {new Date(pass.createdAt).toLocaleDateString('es-CL')}
+                </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">
                     <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">

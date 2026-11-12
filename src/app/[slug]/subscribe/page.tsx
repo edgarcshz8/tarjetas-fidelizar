@@ -299,9 +299,15 @@ export default function SubscribePage() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Pago recibido</h1>
-          <p className="text-gray-500 text-sm">
+          <p className="text-gray-500 text-sm mb-6">
             Tu suscripción esta siendo procesada. Recibirás un correo de confirmación cuando el pago sea aprobado.
           </p>
+          <a
+            href={`/${slug}`}
+            className="inline-block px-6 py-2 bg-slate-900 text-white font-semibold rounded-xl hover:bg-slate-700 transition"
+          >
+            Volver al panel de inicio
+          </a>
         </div>
       </div>
     )
