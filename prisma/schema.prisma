@@ -116,7 +116,7 @@ model Stamp {
   createdAt  DateTime @default(now())
 
   pass    CustomerPass @relation(fields: [passId], references: [id], onDelete: Cascade)
-  addedBy User         @relation(fields: [addedById], references: [id])
+  addedBy User         @relation(fields: [addedById], references: [id], onDelete: NoAction)
 
   @@map("stamps")
 }

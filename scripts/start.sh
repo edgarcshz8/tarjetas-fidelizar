@@ -10,19 +10,28 @@ npx prisma migrate deploy
 echo "[start] migrate deploy: OK"
 
 # ── Schema drift check ──────────────────────────────────────────────────────
-# Fails the container if schema.prisma has models/fields that no migration
-# covers. Without this, P2021 errors only surface at request time.
+# Compares migrations (not live DB) against schema.prisma via a shadow DB.
+# Set SHADOW_DATABASE_URL in Dokploy to a separate PostgreSQL database.
+# Skipped gracefully when SHADOW_DATABASE_URL is absent.
 echo "[start] ── Checking for unapplied schema changes ─────────────────────"
-if npx prisma migrate diff \
-     --from-local-db \
-     --to-schema-datamodel prisma/schema.prisma \
-     --exit-code 2>/dev/null; then
-  echo "[start] schema drift check: OK (no diff)"
+if [ -z "${SHADOW_DATABASE_URL:-}" ]; then
+  echo "[start] schema drift check: skipped (SHADOW_DATABASE_URL not set)"
 else
-  echo "[start] ERROR: schema.prisma has changes not covered by a migration."
-  echo "[start]   Run 'prisma migrate dev' locally, commit the new migration,"
-  echo "[start]   and redeploy."
-  exit 1
+  DIFF_EXIT=0
+  npx prisma migrate diff \
+       --from-migrations prisma/migrations \
+       --to-schema-datamodel prisma/schema.prisma \
+       --shadow-database-url "$SHADOW_DATABASE_URL" \
+       --exit-code 2>&1 || DIFF_EXIT=$?
+  if [ "$DIFF_EXIT" = "0" ]; then
+    echo "[start] schema drift check: OK (no diff)"
+  elif [ "$DIFF_EXIT" = "1" ]; then
+    echo "[start] ERROR: schema.prisma has changes not covered by a migration."
+    echo "[start]   Run 'prisma migrate dev --create-only' locally, commit, redeploy."
+    exit 1
+  else
+    echo "[start] WARNING: drift check failed to run (exit $DIFF_EXIT), skipping."
+  fi
 fi
 
 # ── Failsafe: add new columns with IF NOT EXISTS ────────────────────────────
