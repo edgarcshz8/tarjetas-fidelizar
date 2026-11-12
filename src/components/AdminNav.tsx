@@ -10,18 +10,27 @@ import {
   faQrcode,
   faUsers,
   faGear,
+  faCreditCard,
 } from '@fortawesome/free-solid-svg-icons'
 import { IconDefinition } from '@fortawesome/fontawesome-svg-core'
 
-const navItems: { href: string; label: string; icon: IconDefinition }[] = [
+const staticNavItems: { href: string; label: string; icon: IconDefinition }[] = [
   { href: '/admin/dashboard', label: 'Dashboard',      icon: faChartBar },
   { href: '/admin/scanner',   label: 'Escanear',       icon: faQrcode   },
   { href: '/admin/customers', label: 'Clientes',       icon: faUsers    },
   { href: '/admin/settings',  label: 'Configuración',  icon: faGear     },
 ]
 
+function getNavItems(slug: string) {
+  return [
+    ...staticNavItems,
+    { href: `/${slug}/subscribe`, label: 'Suscripción', icon: faCreditCard },
+  ]
+}
+
 export default function AdminNav({ session }: { session: Session }) {
   const pathname = usePathname()
+  const navItems = getNavItems(session.user.businessSlug)
 
   return (
     <header className="bg-slate-900 text-white shadow-lg">
