@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { upsertLoyaltyClass } from '@/lib/google-wallet'
 
 export const runtime = 'nodejs'
 
@@ -45,6 +46,21 @@ export async function PATCH(req: NextRequest) {
     where: { id: session.user.businessId },
     data,
   })
+
+  // Cuando cambian las coordenadas, actualizar la clase de Google Wallet con los datos nuevos.
+  // Fire-and-forget: no bloqueamos la respuesta al admin.
+  if (data.latitude !== undefined || data.longitude !== undefined || data.locationName !== undefined) {
+    prisma.loyaltyProgram.findMany({
+      where: { businessId: session.user.businessId, isActive: true },
+      include: { business: true },
+    }).then(programs => {
+      for (const program of programs) {
+        upsertLoyaltyClass(program).catch(err =>
+          console.error(`[businesses] upsertLoyaltyClass programId=${program.id}:`, err?.message ?? err)
+        )
+      }
+    }).catch(err => console.error('[businesses] findPrograms for location sync:', err))
+  }
 
   return NextResponse.json({ business })
 }

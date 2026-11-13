@@ -44,8 +44,6 @@ export async function upsertLoyaltyClass(
   const client = await auth.getClient()
   const classId = buildLoyaltyClassId(program.id)
 
-  // Google requiere logo HTTPS accesible públicamente (no localhost).
-  // stampIconUrl es el campo que rellena el admin; logoUrl es un alias opcional.
   const rawLogoUrl = program.logoUrl || program.stampIconUrl
   const logoUrl = rawLogoUrl?.startsWith('http')
     ? rawLogoUrl
@@ -59,18 +57,15 @@ export async function upsertLoyaltyClass(
     rewardsTierPoints: 'Sellos',
     loyaltyPoints: {
       label: 'Sellos',
-      balance: {
-        string: `0 / ${program.stampsRequired}`,
-      },
+      balance: { string: `0 / ${program.stampsRequired}` },
     },
     hexBackgroundColor: program.backgroundColor,
     reviewStatus: 'UNDER_REVIEW',
-  }
-
-  loyaltyClass.programLogo = {
-    sourceUri: { uri: logoUrl },
-    contentDescription: {
-      defaultValue: { language: 'es', value: program.business.name },
+    programLogo: {
+      sourceUri: { uri: logoUrl },
+      contentDescription: {
+        defaultValue: { language: 'es', value: program.business.name },
+      },
     },
   }
 
@@ -81,25 +76,49 @@ export async function upsertLoyaltyClass(
     ]
   }
 
+  const lat = program.business.latitude ?? 'none'
+
+  // Paso 1: verificar si la clase existe. Solo capturamos 404; cualquier otro error (401, 403…) se relanza.
+  let classExists = false
   try {
-    // Intentar GET primero
     await (client as any).request({
       url: `${GOOGLE_WALLET_API}/loyaltyClass/${encodeURIComponent(classId)}`,
       method: 'GET',
     })
-    // Si existe, actualizar
-    await (client as any).request({
-      url: `${GOOGLE_WALLET_API}/loyaltyClass/${encodeURIComponent(classId)}`,
-      method: 'PUT',
-      data: loyaltyClass,
-    })
-  } catch {
-    // Si no existe, crear
-    await (client as any).request({
-      url: `${GOOGLE_WALLET_API}/loyaltyClass`,
-      method: 'POST',
-      data: loyaltyClass,
-    })
+    classExists = true
+  } catch (err: any) {
+    const status = err?.response?.status ?? err?.status
+    if (status !== 404) {
+      console.error(`[google-wallet] upsertLoyaltyClass GET error classId=${classId} status=${status}:`, err?.response?.data?.error?.message ?? err?.message)
+      throw err
+    }
+  }
+
+  // Paso 2: crear o actualizar (errores separados, no se mezclan)
+  if (classExists) {
+    try {
+      await (client as any).request({
+        url: `${GOOGLE_WALLET_API}/loyaltyClass/${encodeURIComponent(classId)}`,
+        method: 'PUT',
+        data: loyaltyClass,
+      })
+      console.log(`[google-wallet] upsertLoyaltyClass PUT classId=${classId} lat=${lat}`)
+    } catch (err: any) {
+      console.error(`[google-wallet] upsertLoyaltyClass PUT error classId=${classId}:`, err?.response?.data?.error?.message ?? err?.message)
+      throw err
+    }
+  } else {
+    try {
+      await (client as any).request({
+        url: `${GOOGLE_WALLET_API}/loyaltyClass`,
+        method: 'POST',
+        data: loyaltyClass,
+      })
+      console.log(`[google-wallet] upsertLoyaltyClass POST classId=${classId} lat=${lat}`)
+    } catch (err: any) {
+      console.error(`[google-wallet] upsertLoyaltyClass POST error classId=${classId}:`, err?.response?.data?.error?.message ?? err?.message)
+      throw err
+    }
   }
 
   return classId
@@ -160,15 +179,31 @@ export async function updateLoyaltyObject(passData: GooglePassData): Promise<voi
     rewardReady,
   })
 
-  await (client as any).request({
-    url: `${GOOGLE_WALLET_API}/loyaltyObject/${encodeURIComponent(googleObjectId)}`,
-    method: 'PATCH',
-    data: {
-      loyaltyPoints:  payload.loyaltyPoints,
-      textModulesData: payload.textModulesData,
-      heroImage:      payload.heroImage,
-    },
-  })
+  const { latitude, longitude } = program.business
+
+  const patchData: Record<string, any> = {
+    loyaltyPoints:   payload.loyaltyPoints,
+    textModulesData: payload.textModulesData,
+    heroImage:       payload.heroImage,
+  }
+
+  // Incluir coordenadas en el objeto para geofencing a nivel de object
+  // (belt + suspenders: la clase también las tiene vía upsertLoyaltyClass)
+  if (latitude != null && longitude != null) {
+    patchData.locations = [{ latitude, longitude }]
+  }
+
+  try {
+    await (client as any).request({
+      url: `${GOOGLE_WALLET_API}/loyaltyObject/${encodeURIComponent(googleObjectId)}`,
+      method: 'PATCH',
+      data: patchData,
+    })
+    console.log(`[google-wallet] updateLoyaltyObject PATCH objectId=${googleObjectId} stamps=${currentStamps} lat=${latitude ?? 'none'}`)
+  } catch (err: any) {
+    console.error(`[google-wallet] updateLoyaltyObject PATCH error objectId=${googleObjectId}:`, err?.response?.data?.error?.message ?? err?.message)
+    throw err
+  }
 }
 
 function buildLoyaltyObjectPayload(params: {
@@ -288,6 +323,30 @@ export function getSaveToWalletUrl(objectId: string): string {
 }
 
 // ─── NOTIFICACIÓN DE CUMPLEAÑOS ───────────────────────────────────────────────
+
+// ─── DIAGNÓSTICO: consulta directa a la API de Google ───────────────────────
+// Devuelven el JSON exacto que Google tiene guardado en este momento.
+
+export async function fetchGoogleWalletClassRaw(programId: string): Promise<Record<string, any>> {
+  const auth = getGoogleAuth()
+  const client = await auth.getClient()
+  const classId = buildLoyaltyClassId(programId)
+  const res = await (client as any).request({
+    url: `${GOOGLE_WALLET_API}/loyaltyClass/${encodeURIComponent(classId)}`,
+    method: 'GET',
+  })
+  return res.data
+}
+
+export async function fetchGoogleWalletObjectRaw(objectId: string): Promise<Record<string, any>> {
+  const auth = getGoogleAuth()
+  const client = await auth.getClient()
+  const res = await (client as any).request({
+    url: `${GOOGLE_WALLET_API}/loyaltyObject/${encodeURIComponent(objectId)}`,
+    method: 'GET',
+  })
+  return res.data
+}
 
 export async function pushBirthdayNotification(
   googleObjectId: string,
