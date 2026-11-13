@@ -1,3 +1,4 @@
+import { isBirthdayToday } from '@/lib/birthday'
 import { PKPass } from 'passkit-generator'
 import fs from 'fs'
 import path from 'path'
@@ -314,6 +315,26 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
       value: `Acumula ${program.stampsRequired} sellos para obtener tu premio. No transferible.`,
     },
   )
+
+  // ─── Mensaje de cumpleaños ─────────────────────────────────────────────────
+  // El campo existe siempre; el día del cumpleaños cambia su valor y lleva changeMessage,
+  // así iOS muestra la notificación en pantalla de bloqueo cuando el pase se actualiza.
+  // Fuera del cumpleaños no lleva changeMessage, para que volver al texto normal no notifique.
+  const firstName = customer.name.trim().split(/\s+/)[0] || customer.name
+  if (isBirthdayToday(customer.birthDate)) {
+    pass.backFields.push({
+      key:           'message',
+      label:         'Mensaje',
+      value:         `🎂 ¡Feliz cumpleaños, ${firstName}! ${program.business.name} te desea un gran día.`,
+      changeMessage: '%@',
+    })
+  } else {
+    pass.backFields.push({
+      key:   'message',
+      label: 'Mensaje',
+      value: `¡Gracias por preferir ${program.business.name}!`,
+    })
+  }
 
   pass.setBarcodes({
     format:          'PKBarcodeFormatQR',
