@@ -1,4 +1,4 @@
-import { isBirthdayToday } from '@/lib/birthday'
+import { isBirthdayToday, todayInTimezone } from '@/lib/birthday'
 import { PKPass } from 'passkit-generator'
 import fs from 'fs'
 import path from 'path'
@@ -320,12 +320,20 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
   // El campo existe siempre; el día del cumpleaños cambia su valor y lleva changeMessage,
   // así iOS muestra la notificación en pantalla de bloqueo cuando el pase se actualiza.
   // Fuera del cumpleaños no lleva changeMessage, para que volver al texto normal no notifique.
-  const firstName = customer.name.trim().split(/\s+/)[0] || customer.name
-  if (isBirthdayToday(customer.birthDate)) {
+  //
+  // El mensaje aparece solo después de que el job de cumpleaños marcó el pase hoy
+  // (birthdayNotifiedOn empieza con la fecha de hoy). Así un pase creado el mismo día
+  // nace con el texto normal y el job lo cambia → iOS detecta el cambio y notifica.
+  // En modo prueba (?force=1) birthdayNotifiedOn = "YYYY-MM-DDTHH:MM:SS": se agrega la hora
+  // al texto para que cada ejecución cambie el pase y vuelva a notificar.
+  const firstName  = customer.name.trim().split(/\s+/)[0] || customer.name
+  const notifiedOn = passData.birthdayNotifiedOn ?? ''
+  if (isBirthdayToday(customer.birthDate) && notifiedOn.startsWith(todayInTimezone().iso)) {
+    const testSuffix = notifiedOn.includes('T') ? ` (prueba ${notifiedOn.split('T')[1]})` : ''
     pass.backFields.push({
       key:           'message',
       label:         'Mensaje',
-      value:         `🎂 ¡Feliz cumpleaños, ${firstName}! ${program.business.name} te desea un gran día.`,
+      value:         `🎂 ¡Feliz cumpleaños, ${firstName}! ${program.business.name} te desea un gran día.${testSuffix}`,
       changeMessage: '%@',
     })
   } else {

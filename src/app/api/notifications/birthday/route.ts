@@ -2,13 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { pushPassUpdate } from '@/lib/apns'
 import { pushBirthdayNotification } from '@/lib/google-wallet'
-import { isBirthdayToday, todayInTimezone } from '@/lib/birthday'
+import { isBirthdayToday, todayInTimezone, BIRTHDAY_TIMEZONE } from '@/lib/birthday'
 
 export const runtime = 'nodejs'
 
 // POST /api/notifications/birthday
 // Llama este endpoint diariamente vía cron job.
 // Requiere header: Authorization: Bearer <CRON_SECRET>
+// Pruebas: POST /api/notifications/birthday?force=1 notifica aunque ya se haya
+// notificado hoy, y agrega la hora al mensaje para que el pase cambie y iOS avise.
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
   const secret = process.env.CRON_SECRET
@@ -22,6 +24,13 @@ export async function POST(req: NextRequest) {
 
   // "Hoy" en hora de Chile (el servidor corre en UTC)
   const today = todayInTimezone()
+
+  const force = req.nextUrl.searchParams.get('force') === '1'
+  const nowTime = new Intl.DateTimeFormat('en-GB', {
+    timeZone: BIRTHDAY_TIMEZONE, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  }).format(new Date())
+  // Normal: "YYYY-MM-DD". Prueba: "YYYY-MM-DDTHH:MM:SS" (passkit agrega la hora al mensaje).
+  const notifiedValue = force ? `${today.iso}T${nowTime}` : today.iso
 
   // Cargar todos los clientes con birthDate y sus pases activos
   const customers = await prisma.customer.findMany({
@@ -58,11 +67,16 @@ export async function POST(req: NextRequest) {
       // El pase regenerado incluye el mensaje de cumpleaños con changeMessage,
       // que es lo que muestra la notificación en la pantalla de bloqueo.
       const claim = await prisma.customerPass.updateMany({
-        where: {
-          id: pass.id,
-          OR: [{ birthdayNotifiedOn: null }, { birthdayNotifiedOn: { not: today.iso } }],
-        },
-        data: { applePassUpdatedAt: new Date(), birthdayNotifiedOn: today.iso },
+        where: force
+          ? { id: pass.id }
+          : {
+              id: pass.id,
+              OR: [
+                { birthdayNotifiedOn: null },
+                { NOT: { birthdayNotifiedOn: { startsWith: today.iso } } },
+              ],
+            },
+        data: { applePassUpdatedAt: new Date(), birthdayNotifiedOn: notifiedValue },
       })
       if (claim.count === 0) {
         skipped++
@@ -88,13 +102,14 @@ export async function POST(req: NextRequest) {
   }
 
   console.log(
-    `[birthday] ${today.iso} — ` +
+    `[birthday] ${today.iso}${force ? ' (force)' : ''} — ` +
     `${birthdayCustomers.length} cumpleaños, Apple: ${appleCount}, Google: ${googleCount}, ya notificados hoy: ${skipped}`,
   )
 
   return NextResponse.json({
     ok: true,
     date: today.iso,
+    force,
     birthdayCustomers: birthdayCustomers.length,
     appleNotifications: appleCount,
     googleNotifications: googleCount,
