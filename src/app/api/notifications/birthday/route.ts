@@ -40,21 +40,34 @@ export async function POST(req: NextRequest) {
 
   let appleCount  = 0
   let googleCount = 0
+  let skipped     = 0
   const errors: string[] = []
 
   for (const customer of birthdayCustomers) {
     for (const pass of customer.passes) {
       const businessName = pass.program.business.name
 
-      // Apple: primero marcamos el pase como actualizado. Sin esto, cuando el iPhone
+      // Idempotencia: solo una notificación por pase por día. Si el cron corre varias
+      // veces, re-marcar el pase sin que su contenido cambie provoca que iOS reporte
+      // "Server requested update … but the pass was unchanged" e
+      // "ignored the 'if-modified-since' header", y Apple puede limitar los pushes.
+      // updateMany con condición = "claim" atómico (seguro ante ejecuciones simultáneas).
+      // Apple: además marcamos el pase como actualizado. Sin esto, cuando el iPhone
       // recibe el push y consulta /registrations?passesUpdatedSince=..., el servidor
       // responde 204 ("spurious push") y el iPhone no descarga el pase nuevo.
       // El pase regenerado incluye el mensaje de cumpleaños con changeMessage,
       // que es lo que muestra la notificación en la pantalla de bloqueo.
-      await prisma.customerPass.update({
-        where: { id: pass.id },
-        data:  { applePassUpdatedAt: new Date() },
+      const claim = await prisma.customerPass.updateMany({
+        where: {
+          id: pass.id,
+          OR: [{ birthdayNotifiedOn: null }, { birthdayNotifiedOn: { not: today.iso } }],
+        },
+        data: { applePassUpdatedAt: new Date(), birthdayNotifiedOn: today.iso },
       })
+      if (claim.count === 0) {
+        skipped++
+        continue
+      }
       await pushPassUpdate(pass.serialNumber).catch(err => {
         errors.push(`Apple serial=${pass.serialNumber}: ${err?.message}`)
       })
@@ -76,7 +89,7 @@ export async function POST(req: NextRequest) {
 
   console.log(
     `[birthday] ${today.iso} — ` +
-    `${birthdayCustomers.length} cumpleaños, Apple: ${appleCount}, Google: ${googleCount}`,
+    `${birthdayCustomers.length} cumpleaños, Apple: ${appleCount}, Google: ${googleCount}, ya notificados hoy: ${skipped}`,
   )
 
   return NextResponse.json({
@@ -85,6 +98,7 @@ export async function POST(req: NextRequest) {
     birthdayCustomers: birthdayCustomers.length,
     appleNotifications: appleCount,
     googleNotifications: googleCount,
+    alreadyNotifiedToday: skipped,
     ...(errors.length ? { errors } : {}),
   })
 }
