@@ -364,22 +364,9 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
     })
   }
 
-  // ─── Fecha relevante: muestra el pase en pantalla de bloqueo en el cumpleaños ─
-  if (customer.birthDate) {
-    pass.setRelevantDates([{ relevantDate: nextBirthdayISO(new Date(customer.birthDate)) }])
-  }
+  // Sin relevantDates: en iOS 18+ una fecha relevante puede hacer que iOS priorice la
+  // fecha sobre la ubicación y no sugiera el pase al llegar al negocio. El aviso de
+  // cumpleaños ya se envía por push (changeMessage), así que la fecha no es necesaria.
 
   return pass.getAsBuffer()
-}
-
-// Calcula el próximo cumpleaños como string ISO para Apple Wallet relevantDate.
-function nextBirthdayISO(birthDate: Date): string {
-  const now  = new Date()
-  const bd   = birthDate
-  let next   = new Date(Date.UTC(now.getUTCFullYear(), bd.getUTCMonth(), bd.getUTCDate(), 9, 0, 0))
-  if (next <= now) {
-    next = new Date(Date.UTC(now.getUTCFullYear() + 1, bd.getUTCMonth(), bd.getUTCDate(), 9, 0, 0))
-  }
-  // Formato requerido por Apple: "2027-03-15T09:00+00:00"
-  return next.toISOString().replace('.000Z', '+00:00')
 }
