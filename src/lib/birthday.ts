@@ -9,12 +9,14 @@ export const DEFAULT_BIRTHDAY_TITLE   = '🎂 ¡Feliz cumpleaños, {cliente}!'
 export const DEFAULT_BIRTHDAY_MESSAGE = '{negocio} te desea un gran día.'
 
 // Reemplaza {cliente}, {negocio} y {premio} en la plantilla. Texto no reconocido se deja intacto.
+// {nombre} se acepta como sinónimo de {cliente} por compatibilidad con mensajes guardados previamente.
 export function renderBirthdayMessage(
   template: string | null | undefined,
   vars: { cliente: string; negocio: string; premio: string },
 ): string {
   return (template ?? DEFAULT_BIRTHDAY_MESSAGE)
     .replace(/{cliente}/g, vars.cliente)
+    .replace(/{nombre}/g,  vars.cliente)
     .replace(/{negocio}/g, vars.negocio)
     .replace(/{premio}/g,  vars.premio)
 }
