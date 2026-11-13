@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-const PASS_TYPE_ID = process.env.APPLE_PASS_TYPE_IDENTIFIER ?? 'pass.com.edgarcamposh.tarjetas-fidelizar'
+const PASS_TYPE_ID = process.env.APPLE_PASS_TYPE_IDENTIFIER ?? 'pass.com.misstamps.loyalty'
 
 // GET /v1/devices/{deviceLibraryIdentifier}/registrations/{passTypeIdentifier}?passesUpdatedSince=...
 // passesUpdatedSince is a Unix timestamp in seconds (the exact string from a prior lastUpdated response).

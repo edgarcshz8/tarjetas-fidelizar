@@ -5,7 +5,7 @@ import { generateApplePass } from '@/lib/passkit'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-const PASS_TYPE_ID = process.env.APPLE_PASS_TYPE_IDENTIFIER ?? 'pass.com.edgarcamposh.tarjetas-fidelizar'
+const PASS_TYPE_ID = process.env.APPLE_PASS_TYPE_IDENTIFIER ?? 'pass.com.misstamps.loyalty'
 
 // GET /v1/passes/{passTypeIdentifier}/{serialNumber}
 // Called by iOS Wallet after receiving an APNs push to fetch the updated pass.
