@@ -81,6 +81,9 @@ model CustomerPass {
   rewardReady        Boolean  @default(false)
   // Apple Wallet: token del pase para APNS
   applePassUpdatedAt DateTime @default(now())
+  // Último día (YYYY-MM-DD, hora Chile) en que se envió el aviso de cumpleaños.
+  // Evita re-marcar el pase y re-enviar push si el cron corre varias veces el mismo día.
+  birthdayNotifiedOn String?
   // Google Wallet: ID del objeto loyaltyObject
   googleObjectId     String?
   createdAt          DateTime @default(now())
