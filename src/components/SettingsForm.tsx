@@ -261,7 +261,7 @@ export default function SettingsForm({ business, program }: Props) {
                   <p className="text-sm font-medium text-gray-700">Mensaje de cumpleaños</p>
                   <p className="text-xs text-gray-400 mt-0.5">
                     Se envía al cliente el día de su cumpleaños como notificación en Apple Wallet y Google Wallet.
-                    Usa <code className="bg-gray-100 px-1 rounded text-gray-600">{'{nombre}'}</code>,{' '}
+                    Usa <code className="bg-gray-100 px-1 rounded text-gray-600">{'{cliente}'}</code>,{' '}
                     <code className="bg-gray-100 px-1 rounded text-gray-600">{'{negocio}'}</code> y{' '}
                     <code className="bg-gray-100 px-1 rounded text-gray-600">{'{premio}'}</code> como variables.
                   </p>
@@ -280,7 +280,7 @@ export default function SettingsForm({ business, program }: Props) {
                     value={p.birthdayTitle}
                     onChange={e => setProgramData(d => ({ ...d, birthdayTitle: e.target.value }))}
                     className="input"
-                    placeholder="🎂 ¡Feliz cumpleaños, {nombre}!"
+                    placeholder="🎂 ¡Feliz cumpleaños, {cliente}!"
                   />
                 </div>
 
@@ -305,14 +305,14 @@ export default function SettingsForm({ business, program }: Props) {
                 <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl">
                   <p className="text-xs font-medium text-amber-700 mb-1.5">Vista previa (cliente: Camila)</p>
                   <p className="text-sm font-semibold text-amber-900">
-                    {(p.birthdayTitle || '🎂 ¡Feliz cumpleaños, {nombre}!')
-                      .replace(/{nombre}/g, 'Camila')
+                    {(p.birthdayTitle || '🎂 ¡Feliz cumpleaños, {cliente}!')
+                      .replace(/{cliente}/g, 'Camila')
                       .replace(/{negocio}/g, businessData.name || 'Tu negocio')
                       .replace(/{premio}/g, p.rewardDescription || 'tu premio')}
                   </p>
                   <p className="text-sm text-amber-800 mt-0.5">
                     {(p.birthdayMessage || '{negocio} te desea un gran día.')
-                      .replace(/{nombre}/g, 'Camila')
+                      .replace(/{cliente}/g, 'Camila')
                       .replace(/{negocio}/g, businessData.name || 'Tu negocio')
                       .replace(/{premio}/g, p.rewardDescription || 'tu premio')}
                   </p>

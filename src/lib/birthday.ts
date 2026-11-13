@@ -5,16 +5,16 @@
 
 export const BIRTHDAY_TIMEZONE = process.env.BIRTHDAY_TIMEZONE || 'America/Santiago'
 
-export const DEFAULT_BIRTHDAY_TITLE   = '🎂 ¡Feliz cumpleaños, {nombre}!'
+export const DEFAULT_BIRTHDAY_TITLE   = '🎂 ¡Feliz cumpleaños, {cliente}!'
 export const DEFAULT_BIRTHDAY_MESSAGE = '{negocio} te desea un gran día.'
 
-// Reemplaza {nombre}, {negocio} y {premio} en la plantilla. Texto no reconocido se deja intacto.
+// Reemplaza {cliente}, {negocio} y {premio} en la plantilla. Texto no reconocido se deja intacto.
 export function renderBirthdayMessage(
   template: string | null | undefined,
-  vars: { nombre: string; negocio: string; premio: string },
+  vars: { cliente: string; negocio: string; premio: string },
 ): string {
   return (template ?? DEFAULT_BIRTHDAY_MESSAGE)
-    .replace(/{nombre}/g,  vars.nombre)
+    .replace(/{cliente}/g, vars.cliente)
     .replace(/{negocio}/g, vars.negocio)
     .replace(/{premio}/g,  vars.premio)
 }

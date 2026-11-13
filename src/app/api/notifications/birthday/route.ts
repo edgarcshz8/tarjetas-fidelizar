@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
       // Google: mensaje de cumpleaños en el pase
       if (pass.googleObjectId) {
         const firstName = customer.name.trim().split(/\s+/)[0] || customer.name
-        const vars = { nombre: firstName, negocio: businessName, premio: pass.program.rewardDescription }
+        const vars = { cliente: firstName, negocio: businessName, premio: pass.program.rewardDescription }
         const googleHeader = renderBirthdayMessage(pass.program.birthdayTitle || DEFAULT_BIRTHDAY_TITLE, vars)
         const googleBody   = renderBirthdayMessage(pass.program.birthdayMessage || DEFAULT_BIRTHDAY_MESSAGE, vars)
         await pushBirthdayNotification(

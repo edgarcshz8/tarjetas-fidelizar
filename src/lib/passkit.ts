@@ -330,7 +330,7 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
   const notifiedOn = passData.birthdayNotifiedOn ?? ''
   if (isBirthdayToday(customer.birthDate) && notifiedOn.startsWith(todayInTimezone().iso)) {
     const testSuffix = notifiedOn.includes('T') ? ` (prueba ${notifiedOn.split('T')[1]})` : ''
-    const vars = { nombre: firstName, negocio: program.business.name, premio: program.rewardDescription }
+    const vars = { cliente: firstName, negocio: program.business.name, premio: program.rewardDescription }
     pass.backFields.push({
       key:           'message',
       label:         'Mensaje',
