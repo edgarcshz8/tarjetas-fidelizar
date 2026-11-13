@@ -45,7 +45,9 @@ ALTER TABLE "businesses"  ADD COLUMN IF NOT EXISTS "latitude"     DOUBLE PRECISI
 ALTER TABLE "businesses"  ADD COLUMN IF NOT EXISTS "longitude"    DOUBLE PRECISION;
 ALTER TABLE "businesses"  ADD COLUMN IF NOT EXISTS "locationName" TEXT;
 ALTER TABLE "customers"   ADD COLUMN IF NOT EXISTS "birthDate"    TIMESTAMP(3);
-ALTER TABLE "customer_passes" ADD COLUMN IF NOT EXISTS "birthdayNotifiedOn" TEXT;
+ALTER TABLE "customer_passes"  ADD COLUMN IF NOT EXISTS "birthdayNotifiedOn" TEXT;
+ALTER TABLE "loyalty_programs" ADD COLUMN IF NOT EXISTS "birthdayTitle"     TEXT;
+ALTER TABLE "loyalty_programs" ADD COLUMN IF NOT EXISTS "birthdayMessage"   TEXT;
 SQL
 echo "[start] failsafe columns: OK"
 

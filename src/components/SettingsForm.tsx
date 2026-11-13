@@ -32,6 +32,8 @@ interface ProgramState {
   backgroundColor: string
   foregroundColor: string
   labelColor: string
+  birthdayTitle: string
+  birthdayMessage: string
 }
 
 type FormSection = 'programa' | 'diseno' | 'negocio'
@@ -67,6 +69,8 @@ export default function SettingsForm({ business, program }: Props) {
     backgroundColor:  program?.backgroundColor  ?? '#1a1a2e',
     foregroundColor:  program?.foregroundColor  ?? '#ffffff',
     labelColor:       program?.labelColor       ?? '#aaaacc',
+    birthdayTitle:    program?.birthdayTitle    ?? '',
+    birthdayMessage:  program?.birthdayMessage  ?? '',
   })
 
   const [businessData, setBusinessData] = useState({
@@ -250,6 +254,70 @@ export default function SettingsForm({ business, program }: Props) {
                   placeholder="Ej: 1 café de tu elección completamente gratis"
                 />
               </Field>
+
+              {/* ── Mensaje de cumpleaños ── */}
+              <div className="border-t border-gray-100 pt-5 space-y-4">
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Mensaje de cumpleaños</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Se envía al cliente el día de su cumpleaños como notificación en Apple Wallet y Google Wallet.
+                    Usa <code className="bg-gray-100 px-1 rounded text-gray-600">{'{nombre}'}</code>,{' '}
+                    <code className="bg-gray-100 px-1 rounded text-gray-600">{'{negocio}'}</code> y{' '}
+                    <code className="bg-gray-100 px-1 rounded text-gray-600">{'{premio}'}</code> como variables.
+                  </p>
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="text-sm font-medium text-gray-700">Título</label>
+                    <span className={`text-xs tabular-nums ${p.birthdayTitle.length > 55 ? 'text-orange-500' : 'text-gray-400'}`}>
+                      {p.birthdayTitle.length} / 60
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    maxLength={60}
+                    value={p.birthdayTitle}
+                    onChange={e => setProgramData(d => ({ ...d, birthdayTitle: e.target.value }))}
+                    className="input"
+                    placeholder="🎂 ¡Feliz cumpleaños, {nombre}!"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="text-sm font-medium text-gray-700">Mensaje</label>
+                    <span className={`text-xs tabular-nums ${p.birthdayMessage.length > 185 ? 'text-orange-500' : 'text-gray-400'}`}>
+                      {p.birthdayMessage.length} / 200
+                    </span>
+                  </div>
+                  <textarea
+                    maxLength={200}
+                    rows={3}
+                    value={p.birthdayMessage}
+                    onChange={e => setProgramData(d => ({ ...d, birthdayMessage: e.target.value }))}
+                    className="input resize-none"
+                    placeholder="{negocio} te desea un gran día."
+                  />
+                </div>
+
+                {/* Vista previa con nombre de ejemplo "Camila" */}
+                <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl">
+                  <p className="text-xs font-medium text-amber-700 mb-1.5">Vista previa (cliente: Camila)</p>
+                  <p className="text-sm font-semibold text-amber-900">
+                    {(p.birthdayTitle || '🎂 ¡Feliz cumpleaños, {nombre}!')
+                      .replace(/{nombre}/g, 'Camila')
+                      .replace(/{negocio}/g, businessData.name || 'Tu negocio')
+                      .replace(/{premio}/g, p.rewardDescription || 'tu premio')}
+                  </p>
+                  <p className="text-sm text-amber-800 mt-0.5">
+                    {(p.birthdayMessage || '{negocio} te desea un gran día.')
+                      .replace(/{nombre}/g, 'Camila')
+                      .replace(/{negocio}/g, businessData.name || 'Tu negocio')
+                      .replace(/{premio}/g, p.rewardDescription || 'tu premio')}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 

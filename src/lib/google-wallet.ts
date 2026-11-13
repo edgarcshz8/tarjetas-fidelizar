@@ -291,20 +291,19 @@ export function getSaveToWalletUrl(objectId: string): string {
 
 export async function pushBirthdayNotification(
   googleObjectId: string,
-  customerName: string,
-  businessName: string,
+  header: string,
+  body: string,
 ): Promise<void> {
   const auth = getGoogleAuth()
   const client = await auth.getClient()
-  const firstName = customerName.split(' ')[0]
 
   await (client as any).request({
     url: `${GOOGLE_WALLET_API}/loyaltyObject/${encodeURIComponent(googleObjectId)}/addMessage`,
     method: 'POST',
     data: {
       message: {
-        header: `🎂 ¡Feliz cumpleaños, ${firstName}!`,
-        body: `${businessName} te desea un día increíble. ¡Visítanos para celebrar juntos!`,
+        header,
+        body,
         id: `birthday_${Date.now()}`,
         messageType: 'TEXT',
       },

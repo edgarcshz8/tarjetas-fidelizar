@@ -47,6 +47,9 @@ model LoyaltyProgram {
   isActive          Boolean  @default(true)
   // Google Wallet: ID de la clase (loyaltyClass) creada en Google
   googleClassId     String?
+  // Mensaje personalizado de cumpleaños (soporta {nombre}, {negocio}, {premio})
+  birthdayTitle     String?
+  birthdayMessage   String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
