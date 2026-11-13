@@ -1,4 +1,4 @@
-import { isBirthdayToday, todayInTimezone } from '@/lib/birthday'
+import { isBirthdayToday, todayInTimezone, renderBirthdayMessage } from '@/lib/birthday'
 import { PKPass } from 'passkit-generator'
 import fs from 'fs'
 import path from 'path'
@@ -330,10 +330,11 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
   const notifiedOn = passData.birthdayNotifiedOn ?? ''
   if (isBirthdayToday(customer.birthDate) && notifiedOn.startsWith(todayInTimezone().iso)) {
     const testSuffix = notifiedOn.includes('T') ? ` (prueba ${notifiedOn.split('T')[1]})` : ''
+    const vars = { nombre: firstName, negocio: program.business.name, premio: program.rewardDescription }
     pass.backFields.push({
       key:           'message',
       label:         'Mensaje',
-      value:         `🎂 ¡Feliz cumpleaños, ${firstName}! ${program.business.name} te desea un gran día.${testSuffix}`,
+      value:         renderBirthdayMessage(program.birthdayMessage, vars) + testSuffix,
       changeMessage: '%@',
     })
   } else {

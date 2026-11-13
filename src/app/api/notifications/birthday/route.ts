@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { pushPassUpdate } from '@/lib/apns'
 import { pushBirthdayNotification } from '@/lib/google-wallet'
-import { isBirthdayToday, todayInTimezone, BIRTHDAY_TIMEZONE } from '@/lib/birthday'
+import { isBirthdayToday, todayInTimezone, BIRTHDAY_TIMEZONE, renderBirthdayMessage, DEFAULT_BIRTHDAY_TITLE, DEFAULT_BIRTHDAY_MESSAGE } from '@/lib/birthday'
 
 export const runtime = 'nodejs'
 
@@ -89,10 +89,14 @@ export async function POST(req: NextRequest) {
 
       // Google: mensaje de cumpleaños en el pase
       if (pass.googleObjectId) {
+        const firstName = customer.name.trim().split(/\s+/)[0] || customer.name
+        const vars = { nombre: firstName, negocio: businessName, premio: pass.program.rewardDescription }
+        const googleHeader = renderBirthdayMessage(pass.program.birthdayTitle || DEFAULT_BIRTHDAY_TITLE, vars)
+        const googleBody   = renderBirthdayMessage(pass.program.birthdayMessage || DEFAULT_BIRTHDAY_MESSAGE, vars)
         await pushBirthdayNotification(
           pass.googleObjectId,
-          customer.name,
-          businessName,
+          googleHeader,
+          googleBody,
         ).catch(err => {
           errors.push(`Google objectId=${pass.googleObjectId}: ${err?.message}`)
         })
