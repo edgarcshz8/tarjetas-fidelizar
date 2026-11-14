@@ -362,6 +362,9 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
       longitude,
       relevantText: locationName || `¡Visita ${businessName}!`,
     })
+    console.log(`[passkit] LOCATIONS SET serial=${serialNumber} lat=${latitude} lng=${longitude} text="${locationName || `¡Visita ${businessName}!`}"`)
+  } else {
+    console.warn(`[passkit] NO LOCATIONS serial=${serialNumber} — business has no coordinates in DB`)
   }
 
   // Sin relevantDates: en iOS 18+ una fecha relevante puede hacer que iOS priorice la
