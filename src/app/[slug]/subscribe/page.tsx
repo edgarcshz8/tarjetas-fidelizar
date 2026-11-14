@@ -474,12 +474,12 @@ export default function SubscribePage() {
         ) : plans.length === 0 ? (
           <p className="text-center text-slate-400 py-8">No hay planes disponibles en este momento.</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          <div className="flex flex-wrap justify-center gap-4 mb-8">
             {plans.map((plan) => (
               <button
                 key={plan.id}
                 onClick={() => setSelectedPlan(plan)}
-                className={`p-6 rounded-2xl text-left transition border-2 ${
+                className={`w-full sm:w-72 p-6 rounded-2xl text-left transition border-2 ${
                   selectedPlan?.id === plan.id
                     ? 'bg-white border-white text-slate-900 shadow-2xl scale-[1.02]'
                     : 'bg-white/10 border-white/20 text-white hover:bg-white/20'
