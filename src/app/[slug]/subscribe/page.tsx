@@ -287,7 +287,7 @@ export default function SubscribePage() {
       const status = data.status ?? ''
 
       if (status === 'approved') {
-        setStep('success')
+        window.location.href = 'https://www.misstamps.com/admin/dashboard'
         return
       }
 

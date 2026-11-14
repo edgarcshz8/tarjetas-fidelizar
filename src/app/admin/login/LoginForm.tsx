@@ -12,6 +12,7 @@ export default function LoginForm() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [subscribeSlug, setSubscribeSlug] = useState<string | null>(null)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -30,7 +31,12 @@ export default function LoginForm() {
       if (result.error.startsWith('TooManyAttempts:')) {
         const mins = result.error.split(':')[1]
         setError(`Demasiados intentos fallidos. Intenta de nuevo en ${mins} minuto${mins === '1' ? '' : 's'}.`)
+      } else if (result.error.startsWith('NoActiveSubscription:')) {
+        const slug = result.error.split(':')[1]
+        setSubscribeSlug(slug)
+        setError('No tienes una suscripción activa. Debes pagar tu plan para acceder.')
       } else {
+        setSubscribeSlug(null)
         setError('Email o contraseña incorrectos')
       }
       return
@@ -68,8 +74,16 @@ export default function LoginForm() {
             </div>
           )}
           {error && (
-            <div className="mb-5 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-              {error}
+            <div className="mb-5 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm space-y-2">
+              <p>{error}</p>
+              {subscribeSlug && (
+                <a
+                  href={`/${subscribeSlug}/subscribe`}
+                  className="inline-block font-semibold underline hover:text-red-900 transition"
+                >
+                  Ir a suscribirse →
+                </a>
+              )}
             </div>
           )}
 
