@@ -314,6 +314,11 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
       label: 'Condiciones',
       value: `Acumula ${program.stampsRequired} sellos para obtener tu premio. No transferible.`,
     },
+    {
+      key:   'location-tip',
+      label: 'Notificaciones de proximidad',
+      value: 'Para recibir un aviso cuando estés cerca: Ajustes → Privacidad y seguridad → Localización → Wallet → "Mientras uso la app".',
+    },
   )
 
   // ─── Mensaje de cumpleaños ─────────────────────────────────────────────────
