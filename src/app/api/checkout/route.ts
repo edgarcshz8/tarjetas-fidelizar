@@ -25,11 +25,14 @@ import { CheckoutError } from '@/lib/payments/errors'
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
+const ANNUAL_MONTHS = 10 // 2 meses gratis
+
 interface CheckoutRequestBody {
   businessId: string
   planId: string
   payerEmail: string
   payerName: string
+  billingPeriod?: 'monthly' | 'annual'
 }
 
 interface MpPreferenceResponse {
@@ -58,7 +61,7 @@ async function handleCheckout(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'JSON inválido' }, { status: 400 })
   }
 
-  const { businessId, planId, payerEmail, payerName } = body
+  const { businessId, planId, payerEmail, payerName, billingPeriod = 'monthly' } = body
 
   if (!businessId || !planId || !payerEmail || !payerName) {
     return NextResponse.json(
@@ -100,13 +103,15 @@ async function handleCheckout(request: NextRequest): Promise<NextResponse> {
   const idempotencyKey = crypto.randomUUID()
 
   // CLP es moneda de cero decimales — NO multiplicar por 100
-  const unitPrice = plan.priceClp
+  const isAnnual = billingPeriod === 'annual'
+  const unitPrice = isAnnual ? plan.priceClp * ANNUAL_MONTHS : plan.priceClp
+  const periodLabel = isAnnual ? 'anual' : 'mensual'
 
   const preferencePayload = {
     items: [
       {
         id: plan.id,
-        title: `Suscripción ${plan.name} — Tarjetas de Fidelización`,
+        title: `Suscripción ${plan.name} (${periodLabel}) — Tarjetas de Fidelización`,
         description: `Plan mensual para ${business.name}`,
         quantity: 1,
         currency_id: 'CLP',

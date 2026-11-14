@@ -129,6 +129,7 @@ export default function SubscribePage() {
   const [payerName, setPayerName] = useState('')
   // Error inline en el Brick para pagos rechazados (no navega fuera del form)
   const [brickError, setBrickError] = useState<string | null>(null)
+  const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('monthly')
 
   const brickControllerRef = useRef<MpBrickController | null>(null)
   const sdkLoadedRef = useRef(false)
@@ -229,6 +230,7 @@ export default function SubscribePage() {
           planId: selectedPlan.id,
           payerEmail,
           payerName,
+          billingPeriod,
         }),
       })
 
@@ -273,6 +275,7 @@ export default function SubscribePage() {
           formData:   mpData.formData,
           businessId,
           planId:     selectedPlan.id,
+          billingPeriod,
         }),
       })
 
@@ -383,7 +386,9 @@ export default function SubscribePage() {
             <h1 className="text-2xl font-bold text-white mb-1">Completa tu pago</h1>
             <p className="text-slate-400 text-sm">
               Plan <strong className="text-white">{selectedPlan?.name}</strong> —{' '}
-              ${selectedPlan?.priceClp.toLocaleString('es-CL')} CLP/mes
+              {billingPeriod === 'monthly'
+                ? `$${selectedPlan?.priceClp.toLocaleString('es-CL')} CLP/mes`
+                : `$${(selectedPlan ? selectedPlan.priceClp * 10 : 0).toLocaleString('es-CL')} CLP/año`}
             </p>
           </div>
 
@@ -428,6 +433,37 @@ export default function SubscribePage() {
           <p className="text-slate-400">Accede a la plataforma de tarjetas de fidelización</p>
         </div>
 
+        {/* Toggle mensual / anual */}
+        <div className="flex justify-center mb-8">
+          <div className="bg-white/10 rounded-2xl p-1 flex gap-1">
+            <button
+              onClick={() => setBillingPeriod('monthly')}
+              className={`px-5 py-2 rounded-xl text-sm font-semibold transition ${
+                billingPeriod === 'monthly'
+                  ? 'bg-white text-slate-900 shadow'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              Mensual
+            </button>
+            <button
+              onClick={() => setBillingPeriod('annual')}
+              className={`flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold transition ${
+                billingPeriod === 'annual'
+                  ? 'bg-white text-slate-900 shadow'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              Anual
+              <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                billingPeriod === 'annual' ? 'bg-green-100 text-green-700' : 'bg-green-500/20 text-green-300'
+              }`}>
+                2 meses gratis
+              </span>
+            </button>
+          </div>
+        </div>
+
         {plansLoading ? (
           <div className="flex justify-center py-12">
             <svg className="animate-spin h-8 w-8 text-white/50" viewBox="0 0 24 24" fill="none">
@@ -450,10 +486,22 @@ export default function SubscribePage() {
                 }`}
               >
                 <p className="text-lg font-bold mb-1">{plan.name}</p>
-                <p className="text-2xl font-black mb-4">
-                  ${plan.priceClp.toLocaleString('es-CL')}
-                  <span className="text-sm font-normal ml-1">CLP/mes</span>
-                </p>
+                {billingPeriod === 'monthly' ? (
+                  <p className="text-2xl font-black mb-4">
+                    ${plan.priceClp.toLocaleString('es-CL')}
+                    <span className="text-sm font-normal ml-1">CLP/mes</span>
+                  </p>
+                ) : (
+                  <div className="mb-4">
+                    <p className="text-2xl font-black">
+                      ${(plan.priceClp * 10).toLocaleString('es-CL')}
+                      <span className="text-sm font-normal ml-1">CLP/año</span>
+                    </p>
+                    <p className={`text-xs mt-0.5 ${selectedPlan?.id === plan.id ? 'text-slate-500' : 'text-slate-400'}`}>
+                      ${Math.round(plan.priceClp * 10 / 12).toLocaleString('es-CL')}/mes · ahorras ${(plan.priceClp * 2).toLocaleString('es-CL')} CLP
+                    </p>
+                  </div>
+                )}
                 <ul className="space-y-1">
                   {featuresForPlan(plan.name).map((f) => (
                     <li key={f} className="text-sm flex items-center gap-2">
@@ -509,7 +557,9 @@ export default function SubscribePage() {
                   Preparando pago...
                 </span>
               ) : (
-                `Continuar con ${selectedPlan.name} — $${selectedPlan.priceClp.toLocaleString('es-CL')} CLP/mes`
+                billingPeriod === 'monthly'
+                ? `Continuar con ${selectedPlan.name} — $${selectedPlan.priceClp.toLocaleString('es-CL')} CLP/mes`
+                : `Continuar con ${selectedPlan.name} — $${(selectedPlan.priceClp * 10).toLocaleString('es-CL')} CLP/año`
               )}
             </button>
           </div>

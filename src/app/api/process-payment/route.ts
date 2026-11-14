@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 
 export const runtime = 'nodejs'
 
+const ANNUAL_MONTHS = 10 // 2 meses gratis
+
 interface ProcessPaymentBody {
   formData: {
     token: string
@@ -17,6 +19,7 @@ interface ProcessPaymentBody {
   }
   businessId: string
   planId: string
+  billingPeriod?: 'monthly' | 'annual'
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -27,7 +30,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'JSON inválido' }, { status: 400 })
   }
 
-  const { formData, businessId, planId } = body
+  const { formData, businessId, planId, billingPeriod = 'monthly' } = body
 
   if (!businessId || !planId || !formData?.token) {
     return NextResponse.json({ error: 'Faltan campos requeridos (token, businessId, planId)' }, { status: 400 })
@@ -55,11 +58,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const client = new MercadoPagoConfig({ accessToken })
   const paymentClient = new Payment(client)
 
+  const isAnnual = billingPeriod === 'annual'
+  const transactionAmount = isAnnual ? plan.priceClp * ANNUAL_MONTHS : plan.priceClp
+  const periodLabel = isAnnual ? 'anual' : 'mensual'
+  const periodDays = isAnnual ? 365 : 30
+
   let result: Awaited<ReturnType<typeof paymentClient.create>>
   try {
     result = await paymentClient.create({
       body: {
-        transaction_amount: plan.priceClp, // CLP: sin decimales
+        transaction_amount: transactionAmount, // CLP: sin decimales
         token:              formData.token,
         payment_method_id:  formData.payment_method_id,
         issuer_id:          formData.issuer_id,
@@ -70,7 +78,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         },
         external_reference:  `${businessId}:${planId}`,
         notification_url:    `${appUrl}/api/webhooks/mercadopago`,
-        description:         `Suscripción ${plan.name} — Tarjetas de Fidelización`,
+        description:         `Suscripción ${plan.name} (${periodLabel}) — Tarjetas de Fidelización`,
         statement_descriptor: 'TARJ FIDELIZAR',
       },
       requestOptions: { idempotencyKey: crypto.randomUUID() },
@@ -84,7 +92,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   // Actualizar suscripción en BD
   const now = new Date()
-  const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+  const periodEnd = new Date(now.getTime() + periodDays * 24 * 60 * 60 * 1000)
   const isApproved = result.status === 'approved'
 
   const existing = await prisma.subscription.findFirst({
