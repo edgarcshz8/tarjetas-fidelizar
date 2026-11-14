@@ -48,6 +48,7 @@ ALTER TABLE "customers"   ADD COLUMN IF NOT EXISTS "birthDate"    TIMESTAMP(3);
 ALTER TABLE "customer_passes"  ADD COLUMN IF NOT EXISTS "birthdayNotifiedOn" TEXT;
 ALTER TABLE "loyalty_programs" ADD COLUMN IF NOT EXISTS "birthdayTitle"     TEXT;
 ALTER TABLE "loyalty_programs" ADD COLUMN IF NOT EXISTS "birthdayMessage"   TEXT;
+ALTER TABLE "subscriptions"    ADD COLUMN IF NOT EXISTS "mpStatusDetail"    TEXT;
 SQL
 echo "[start] failsafe columns: OK"
 

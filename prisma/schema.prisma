@@ -169,6 +169,7 @@ model Subscription {
   mpSubscriptionId   String?            // ID interno MP (preapproval / payment_id)
   mpPreapprovalId    String?            // ID del preapproval plan en MP
   mpPayerId          String?            // MP payer user_id
+  mpStatusDetail     String?            // MP status_detail del último pago (ej: cc_rejected_*)
   currentPeriodStart DateTime?
   currentPeriodEnd   DateTime?
   canceledAt         DateTime?
