@@ -31,7 +31,7 @@ interface DbPlan {
 
 const PLAN_FEATURES: Record<string, string[]> = {
   'Básico': ['1 programa de fidelización', 'Hasta 500 clientes', 'Apple Wallet + Google Wallet'],
-  'Pro':    ['Programas ilimitados', 'Clientes ilimitados', 'Apple Wallet + Google Wallet', 'Notificaciones push'],
+  'Pro':    ['Programas ilimitados', 'Clientes ilimitados', 'Apple Wallet + Google Wallet', 'Notificación día de cumpleaños', 'Notificación al acercarse al negocio'],
 }
 
 function featuresForPlan(name: string): string[] {
