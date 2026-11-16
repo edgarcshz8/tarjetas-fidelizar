@@ -365,8 +365,6 @@ function DownloadStep({ data }: { data: DownloadData }) {
 
           <a
             href={data.googleWalletUrl}
-            target="_blank"
-            rel="noopener noreferrer"
             className="flex items-center justify-center gap-3 w-full py-4 bg-white text-gray-900 font-semibold rounded-2xl border border-gray-200 hover:bg-gray-50 transition shadow-lg"
           >
             <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
