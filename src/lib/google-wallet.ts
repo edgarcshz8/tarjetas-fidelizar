@@ -272,7 +272,7 @@ function buildLoyaltyObjectPayload(params: {
     barcode: {
       type: 'QR_CODE',
       value: objectId.split('.pass_')[1] || objectId,
-      alternateText: `ID: ${objectId.slice(-8)}`,
+      alternateText: objectId.split('.pass_')[1] || objectId,
     },
   }
 }
