@@ -150,11 +150,22 @@ export async function createLoyaltyObject(passData: GooglePassData): Promise<str
     rewardReady,
   })
 
-  await (client as any).request({
-    url: `${GOOGLE_WALLET_API}/loyaltyObject`,
-    method: 'POST',
-    data: loyaltyObject,
-  })
+  try {
+    await (client as any).request({
+      url: `${GOOGLE_WALLET_API}/loyaltyObject`,
+      method: 'POST',
+      data: loyaltyObject,
+    })
+  } catch (err: any) {
+    const status = err?.response?.status ?? err?.status
+    if (status === 409) {
+      // El objeto ya existe en Google — lo usamos tal cual
+      console.log(`[google-wallet] createLoyaltyObject 409 (ya existe) objectId=${objectId}`)
+    } else {
+      console.error(`[google-wallet] createLoyaltyObject POST error objectId=${objectId}:`, err?.response?.data?.error?.message ?? err?.message)
+      throw err
+    }
+  }
 
   return objectId
 }

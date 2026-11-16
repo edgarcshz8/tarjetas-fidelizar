@@ -77,13 +77,13 @@ export async function POST(req: NextRequest) {
         },
         include: { customer: true, program: { include: { business: true } } },
       })
+    }
 
-      // Crear Google Wallet object
+    // ─── Crear/recuperar Google Wallet object (nuevo pase o pase sin googleObjectId) ─
+    if (!passRecord.googleObjectId) {
       try {
-        // Asegurar que la clase existe en Google
         const classId = await upsertLoyaltyClass(passRecord.program as any)
 
-        // Actualizar classId en el programa si aún no está guardado
         if (!program.googleClassId) {
           await prisma.loyaltyProgram.update({
             where: { id: program.id },
@@ -100,7 +100,6 @@ export async function POST(req: NextRequest) {
         })
       } catch (err) {
         console.error('Error creando Google Wallet object:', err)
-        // Continuar sin Google Wallet si hay error de configuración
       }
     }
 
@@ -109,13 +108,13 @@ export async function POST(req: NextRequest) {
     const appUrl = /^https?:\/\//.test(rawAppUrl) ? rawAppUrl : `https://${rawAppUrl}`
     const applePassUrl = `${appUrl}/api/passes/apple/${passRecord.serialNumber}/download`
 
+    // Usar googleObjectId guardado en BD; si falta (error de creación), derivar del serialNumber
     let googleWalletUrl = '#'
-    if (passRecord.googleObjectId) {
-      try {
-        googleWalletUrl = getSaveToWalletUrl(passRecord.googleObjectId)
-      } catch {
-        // Google Wallet no configurado
-      }
+    try {
+      const objectId = passRecord.googleObjectId ?? buildObjectId(passRecord.serialNumber)
+      googleWalletUrl = getSaveToWalletUrl(objectId)
+    } catch {
+      // Google Wallet no configurado
     }
 
     return NextResponse.json({
