@@ -201,13 +201,19 @@ export default function SubscribePage() {
           preferenceId: preferenceId!,
         },
         customization: {
-          paymentMethods: { creditCard: 'all', debitCard: 'all' },
+          paymentMethods: { creditCard: 'all', debitCard: 'all', mercadoPago: 'all' },
           visual: { style: { theme: 'default' } },
         },
         callbacks: {
           onReady: () => setLoading(false),
           onError: (error: MpBrickError) => {
             console.error('[mp-brick] error:', error.type, error.message)
+            // payment_method_not_in_allowed_types es recuperable: el usuario
+            // puede seleccionar otro método sin salir del formulario
+            if (error.message === 'payment_method_not_in_allowed_types') {
+              setBrickError('El método de pago seleccionado no está disponible. Por favor elige otro.')
+              return
+            }
             setErrorMsg(`Error en el formulario de pago: ${error.message}`)
             setStep('error')
           },
