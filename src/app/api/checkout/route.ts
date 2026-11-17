@@ -30,8 +30,6 @@ const ANNUAL_MONTHS = 10 // 2 meses gratis
 interface CheckoutRequestBody {
   businessId: string
   planId: string
-  payerEmail: string
-  payerName: string
   billingPeriod?: 'monthly' | 'annual'
 }
 
@@ -61,11 +59,11 @@ async function handleCheckout(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'JSON inválido' }, { status: 400 })
   }
 
-  const { businessId, planId, payerEmail, payerName, billingPeriod = 'monthly' } = body
+  const { businessId, planId, billingPeriod = 'monthly' } = body
 
-  if (!businessId || !planId || !payerEmail || !payerName) {
+  if (!businessId || !planId) {
     return NextResponse.json(
-      { error: 'businessId, planId, payerEmail y payerName son requeridos' },
+      { error: 'businessId y planId son requeridos' },
       { status: 400 },
     )
   }
@@ -89,6 +87,14 @@ async function handleCheckout(request: NextRequest): Promise<NextResponse> {
   if (!plan || !plan.isActive) {
     return NextResponse.json({ error: 'Plan no encontrado o inactivo' }, { status: 404 })
   }
+
+  // Obtener email/nombre del dueño del negocio para el pagador en MP
+  const owner = await prisma.user.findFirst({
+    where: { businessId, role: 'OWNER' },
+    select: { email: true, name: true },
+  })
+  const payerEmail = owner?.email ?? 'noreply@misstamps.com'
+  const payerName  = owner?.name  ?? business.name
 
   // Rule 1: API key desde variable de entorno — nunca hardcodeada
   const accessToken = process.env.MP_ACCESS_TOKEN

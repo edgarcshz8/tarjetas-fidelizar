@@ -125,8 +125,6 @@ export default function SubscribePage() {
   const [preferenceId, setPreferenceId] = useState<string | null>(null)
   const [initPoint, setInitPoint] = useState<string | null>(null)
   const [businessId, setBusinessId] = useState<string | null>(null)
-  const [payerEmail, setPayerEmail] = useState('')
-  const [payerName, setPayerName] = useState('')
   // Error inline en el Brick para pagos rechazados (no navega fuera del form)
   const [brickError, setBrickError] = useState<string | null>(null)
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('monthly')
@@ -210,7 +208,7 @@ export default function SubscribePage() {
   }
 
   async function handlePlanSelection() {
-    if (!selectedPlan || !payerEmail || !payerName || !slug) return
+    if (!selectedPlan || !slug) return
     setLoading(true)
     setErrorMsg('')
 
@@ -228,8 +226,6 @@ export default function SubscribePage() {
         body: JSON.stringify({
           businessId: bizData.id,
           planId: selectedPlan.id,
-          payerEmail,
-          payerName,
           billingPeriod,
         }),
       })
@@ -530,51 +526,25 @@ export default function SubscribePage() {
         )}
 
         {selectedPlan && (
-          <div className="bg-white rounded-2xl shadow-2xl p-6 space-y-4">
-            <h2 className="font-semibold text-gray-900">Datos de facturación</h2>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-              <input
-                type="text"
-                value={payerName}
-                onChange={(e) => setPayerName(e.target.value)}
-                placeholder="Tu nombre completo"
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 transition"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Correo electrónico</label>
-              <input
-                type="email"
-                value={payerEmail}
-                onChange={(e) => setPayerEmail(e.target.value)}
-                placeholder="tu@email.com"
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 transition"
-              />
-            </div>
-
-            <button
-              onClick={handlePlanSelection}
-              disabled={loading || !payerEmail || !payerName}
-              className="w-full py-3 bg-slate-900 text-white font-semibold rounded-xl hover:bg-slate-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Preparando pago...
-                </span>
-              ) : (
-                billingPeriod === 'monthly'
+          <button
+            onClick={handlePlanSelection}
+            disabled={loading}
+            className="w-full py-4 bg-white text-slate-900 font-semibold rounded-2xl hover:bg-slate-100 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-2xl"
+          >
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Preparando pago...
+              </span>
+            ) : (
+              billingPeriod === 'monthly'
                 ? `Continuar con ${selectedPlan.name} — $${selectedPlan.priceClp.toLocaleString('es-CL')} CLP/mes`
                 : `Continuar con ${selectedPlan.name} — $${(selectedPlan.priceClp * 10).toLocaleString('es-CL')} CLP/año`
-              )}
-            </button>
-          </div>
+            )}
+          </button>
         )}
       </div>
     </div>
