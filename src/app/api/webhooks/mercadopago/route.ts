@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import crypto from 'crypto'
 import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { prisma } from '@/lib/prisma'
 import { WebhookSignatureError, WebhookTimestampError, WebhookReplayError } from '@/lib/payments/errors'
+import { buildWebhookManifest, verifyWebhookHmac } from '@/lib/payments/mp-webhook-verify'
 
 export const runtime = 'nodejs'
 
@@ -11,53 +11,39 @@ export const runtime = 'nodejs'
 // Manifest: "id:<data.id>;request-id:<x-request-id>;ts:<ts>;"
 // Ref: https://www.mercadopago.com.ar/developers/es/docs/your-integrations/notifications/webhooks
 
-function verifySignature(req: NextRequest, dataId: string): void {
+function verifySignature(req: NextRequest, rawDataId: string): void {
   const secret = process.env.MP_WEBHOOK_SECRET
   if (!secret) {
     if (process.env.NODE_ENV !== 'production') return
     throw new WebhookSignatureError('MP_WEBHOOK_SECRET no configurado')
   }
-  console.log(`[mp-webhook] secret: ${secret.slice(0, 4)}...${secret.slice(-4)} (len=${secret.length})`)
 
-  const xSig = req.headers.get('x-signature') ?? ''
+  const xSig   = req.headers.get('x-signature')  ?? ''
+  const xReqId = req.headers.get('x-request-id') ?? ''
 
   if (!xSig) throw new WebhookSignatureError('cabecera x-signature ausente')
 
   // Parsear "ts=1234,v1=abc..."
-  const parts: Record<string, string> = {}
+  const sigParts: Record<string, string> = {}
   for (const seg of xSig.split(',')) {
     const eq = seg.indexOf('=')
-    if (eq > 0) parts[seg.slice(0, eq).trim()] = seg.slice(eq + 1).trim()
+    if (eq > 0) sigParts[seg.slice(0, eq).trim()] = seg.slice(eq + 1).trim()
   }
 
-  const ts = parts['ts']
-  const v1 = parts['v1']
+  const ts = sigParts['ts']
+  const v1 = sigParts['v1']
   if (!ts || !v1) throw new WebhookSignatureError('formato x-signature inválido')
 
   // Validar antigüedad (5 min)
   const ageSecs = Math.floor(Date.now() / 1000) - Number(ts)
   if (ageSecs > 300) throw new WebhookTimestampError(ageSecs)
 
-  // Traefik (Dokploy) sobreescribe x-request-id con su propio UUID, rompiendo la firma.
-  // Usamos solo id + ts en el manifest; el replay protection lo maneja webhookEvent.
-  const manifest = `id:${dataId};ts:${ts};`
+  const manifest = buildWebhookManifest(rawDataId, xReqId, ts)
 
-  console.log(`[mp-webhook] manifest="${manifest}"`)
+  console.log(`[mp-webhook] manifest="${manifest}" xReqId=${xReqId || '(ausente)'}`)
 
-  const expected = crypto.createHmac('sha256', secret).update(manifest).digest('hex')
-
-  let match: boolean
-  try {
-    match = crypto.timingSafeEqual(
-      Buffer.from(expected, 'hex'),
-      Buffer.from(v1,       'hex'),
-    )
-  } catch {
-    match = false
-  }
-
-  if (!match) {
-    console.error(`[mp-webhook] HMAC esperado=${expected} recibido=${v1}`)
+  if (!verifyWebhookHmac(secret, manifest, v1)) {
+    console.error(`[mp-webhook] HMAC no coincide — recibido v1_prefix=${v1.slice(0, 8)}`)
     throw new WebhookSignatureError('HMAC no coincide')
   }
 }
