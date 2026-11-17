@@ -20,6 +20,8 @@ interface ProcessPaymentBody {
   businessId: string
   planId: string
   billingPeriod?: 'monthly' | 'annual'
+  deviceSessionId?: string
+  payerName?: string
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -30,7 +32,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'JSON inválido' }, { status: 400 })
   }
 
-  const { formData, businessId, planId, billingPeriod = 'monthly' } = body
+  const { formData, businessId, planId, billingPeriod = 'monthly', deviceSessionId, payerName } = body
 
   if (!businessId || !planId || !formData?.token) {
     return NextResponse.json({ error: 'Faltan campos requeridos (token, businessId, planId)' }, { status: 400 })
@@ -63,25 +65,78 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const periodLabel = isAnnual ? 'anual' : 'mensual'
   const periodDays = isAnnual ? 365 : 30
 
+  // Nombre del pagador desde el formulario de facturación
+  const nameParts   = (payerName ?? '').trim().split(/\s+/).filter(Boolean)
+  const firstName   = nameParts[0]  ?? ''
+  const lastName    = nameParts.slice(1).join(' ') || firstName
+
+  // Fecha de registro del dueño del negocio para additional_info
+  const owner = await prisma.user.findFirst({
+    where:  { businessId, role: 'OWNER' },
+    select: { createdAt: true },
+  })
+
+  // IP real del cliente (primer elemento de x-forwarded-for)
+  const ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? '127.0.0.1'
+
+  const paymentBody = {
+    transaction_amount:  transactionAmount,
+    token:               formData.token,
+    payment_method_id:   formData.payment_method_id,
+    issuer_id:           formData.issuer_id,
+    installments:        formData.installments ?? 1,
+    three_d_secure_mode: 'optional' as const,
+    payer: {
+      email:          formData.payer?.email,
+      first_name:     firstName || undefined,
+      last_name:      lastName  || undefined,
+      identification: formData.payer?.identification as any,
+    },
+    additional_info: {
+      ip_address: ipAddress,
+      items: [
+        {
+          id:          plan.id,
+          title:       `Plan ${plan.name} - MissStamps`,
+          description: `Suscripción ${periodLabel}`,
+          category_id: 'services',
+          quantity:    1,
+          unit_price:  transactionAmount,
+        },
+      ],
+      payer: {
+        first_name:        firstName || undefined,
+        last_name:         lastName  || undefined,
+        registration_date: owner?.createdAt.toISOString(),
+      },
+    },
+    external_reference:   `${businessId}:${planId}`,
+    notification_url:     `${appUrl}/api/webhooks/mercadopago?source_news=webhooks`,
+    description:          `Suscripción ${plan.name} (${periodLabel}) — MissStamps`,
+    statement_descriptor: 'MISSTAMPS',
+  }
+
+  console.log('[process-payment] creando pago', {
+    businessId,
+    planId,
+    transactionAmount,
+    paymentMethodId: formData.payment_method_id,
+    payerEmail:      formData.payer?.email,
+    firstName,
+    lastName,
+    ipAddress,
+    hasDeviceSession: !!deviceSessionId,
+    three_d_secure_mode: 'optional',
+  })
+
   let result: Awaited<ReturnType<typeof paymentClient.create>>
   try {
     result = await paymentClient.create({
-      body: {
-        transaction_amount: transactionAmount, // CLP: sin decimales
-        token:              formData.token,
-        payment_method_id:  formData.payment_method_id,
-        issuer_id:          formData.issuer_id,
-        installments:       formData.installments ?? 1,
-        payer: {
-          email:          formData.payer?.email,
-          identification: formData.payer?.identification as any,
-        },
-        external_reference:  `${businessId}:${planId}`,
-        notification_url:    `${appUrl}/api/webhooks/mercadopago?source_news=webhooks`,
-        description:         `Suscripción ${plan.name} (${periodLabel}) — Tarjetas de Fidelización`,
-        statement_descriptor: 'TARJ FIDELIZAR',
+      body: paymentBody,
+      requestOptions: {
+        idempotencyKey: crypto.randomUUID(),
+        ...(deviceSessionId ? { meliSessionId: deviceSessionId } : {}),
       },
-      requestOptions: { idempotencyKey: crypto.randomUUID() },
     })
   } catch (err: any) {
     // MP SDK v2 wraps los errores en err.cause[0].description
@@ -116,8 +171,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   console.log(`[process-payment] businessId=${businessId} plan=${plan.name} status=${result.status} detail=${result.status_detail ?? '-'}`)
 
   return NextResponse.json({
-    id:            result.id,
-    status:        result.status,
-    status_detail: result.status_detail,
+    id:                             result.id,
+    status:                         result.status,
+    status_detail:                  result.status_detail,
+    three_ds_external_resource_url: (result as any).three_ds_external_resource_url ?? undefined,
   })
 }

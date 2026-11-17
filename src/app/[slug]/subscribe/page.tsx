@@ -41,6 +41,7 @@ function featuresForPlan(name: string): string[] {
 declare global {
   interface Window {
     MercadoPago?: new (publicKey: string, options?: { locale?: string }) => MpInstance
+    MP_DEVICE_SESSION_ID?: string
   }
 }
 
@@ -99,7 +100,7 @@ const REJECTION_MESSAGES: Record<string, string> = {
   cc_rejected_call_for_authorize:       'Debes llamar a tu banco para autorizar este pago.',
   cc_rejected_card_disabled:            'Tarjeta inactiva. Contacta a tu banco.',
   cc_rejected_duplicated_payment:       'Pago duplicado. Ya realizaste un pago similar recientemente.',
-  cc_rejected_high_risk:                'Pago rechazado por riesgo inusual.',
+  cc_rejected_high_risk:                'Tu banco o Mercado Pago rechazó el pago por seguridad. Prueba con otra tarjeta o medio de pago.',
   cc_rejected_max_attempts:             'Límite de intentos alcanzado. Usa otra tarjeta.',
   cc_rejected_other_reason:             'El pago fue rechazado. Intenta con otra tarjeta.',
   pending_contingency:                  'El pago está en proceso. Te avisaremos por email.',
@@ -142,6 +143,16 @@ export default function SubscribePage() {
       .then((data: DbPlan[]) => setPlans(data))
       .catch(() => setPlans([]))
       .finally(() => setPlansLoading(false))
+  }, [])
+
+  // Cargar security.js de MP al montar — genera window.MP_DEVICE_SESSION_ID
+  useEffect(() => {
+    const s = document.createElement('script')
+    s.src = 'https://www.mercadopago.com/v2/security.js'
+    s.setAttribute('view', 'checkout')
+    s.async = true
+    document.head.appendChild(s)
+    return () => { document.head.removeChild(s) }
   }, [])
 
   useEffect(() => {
@@ -272,25 +283,38 @@ export default function SubscribePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          formData:   mpData.formData,
+          formData:        mpData.formData,
           businessId,
-          planId:     selectedPlan.id,
+          planId:          selectedPlan.id,
           billingPeriod,
+          payerName,
+          deviceSessionId: window.MP_DEVICE_SESSION_ID ?? '',
         }),
       })
 
-      const data: { id?: string | number; status?: string; status_detail?: string; error?: string } =
-        await res.json()
+      const data: {
+        id?: string | number
+        status?: string
+        status_detail?: string
+        three_ds_external_resource_url?: string
+        error?: string
+      } = await res.json()
 
       if (!res.ok) {
-        // Error de servidor — throw para que el Brick re-habilite el formulario
         throw new Error(data.error ?? 'Error del servidor')
       }
 
-      const status = data.status ?? ''
+      const status       = data.status        ?? ''
+      const statusDetail = data.status_detail ?? ''
 
       if (status === 'approved') {
         window.location.href = 'https://www.misstamps.com/admin/dashboard'
+        return
+      }
+
+      // 3DS challenge — redirigir al iframe de autenticación del banco
+      if (statusDetail === 'pending_challenge' && data.three_ds_external_resource_url) {
+        window.location.href = data.three_ds_external_resource_url
         return
       }
 
@@ -300,9 +324,9 @@ export default function SubscribePage() {
       }
 
       // rejected — mostrar mensaje inline y throw para que el Brick re-habilite el form
-      const msg = rejectionMessage(data.status_detail)
+      const msg = rejectionMessage(statusDetail)
       setBrickError(msg)
-      throw new Error(data.status_detail ?? 'payment_rejected')
+      throw new Error(statusDetail || 'payment_rejected')
     } catch (err) {
       submittingRef.current = false
       throw err // re-throw obligatorio: el Brick lo necesita para re-habilitarse
