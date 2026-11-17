@@ -39,28 +39,25 @@ function verifySignature(req: NextRequest, dataId: string): void {
   const ageSecs = Math.floor(Date.now() / 1000) - Number(ts)
   if (ageSecs > 300) throw new WebhookTimestampError(ageSecs)
 
-  // Manifest: omitir request-id si la cabecera está ausente (comportamiento oficial de MP)
-  const manifest = xReqId
-    ? `id:${dataId};request-id:${xReqId};ts:${ts};`
-    : `id:${dataId};ts:${ts};`
+  console.log(`[mp-webhook] xSig="${xSig}" xReqId="${xReqId}" ts=${ts} v1_prefix=${v1.slice(0, 8)}`)
 
-  console.log(`[mp-webhook] manifest="${manifest}" ts=${ts} xReqId=${xReqId || '(ausente)'}`)
-
-  const expected = crypto.createHmac('sha256', secret).update(manifest).digest('hex')
-
-  // timingSafeEqual lanza RangeError si los buffers tienen distinto largo
-  let match: boolean
-  try {
-    match = crypto.timingSafeEqual(
-      Buffer.from(expected, 'hex'),
-      Buffer.from(v1,      'hex'),
-    )
-  } catch {
-    match = false
+  // Probar 4 variantes del manifest para diagnosticar cuál coincide
+  const variants: Array<{ label: string; m: string }> = [
+    { label: 'A con-reqid  con-;',   m: `id:${dataId};request-id:${xReqId};ts:${ts};` },
+    { label: 'B sin-reqid  con-;',   m: `id:${dataId};ts:${ts};` },
+    { label: 'C con-reqid  sin-;',   m: `id:${dataId};request-id:${xReqId};ts:${ts}` },
+    { label: 'D sin-reqid  sin-;',   m: `id:${dataId};ts:${ts}` },
+  ]
+  let matchedManifest: string | null = null
+  for (const { label, m } of variants) {
+    const h = crypto.createHmac('sha256', secret).update(m).digest('hex')
+    const ok = h === v1
+    console.log(`[mp-webhook] variant ${label}: ${ok ? 'MATCH ✓' : 'no match'} prefix=${h.slice(0, 8)}`)
+    if (ok && !matchedManifest) matchedManifest = m
   }
 
-  if (!match) {
-    console.error(`[mp-webhook] HMAC esperado=${expected} recibido=${v1}`)
+  if (!matchedManifest) {
+    console.error(`[mp-webhook] ninguna variante coincide — verificar MP_WEBHOOK_SECRET`)
     throw new WebhookSignatureError('HMAC no coincide')
   }
 }
