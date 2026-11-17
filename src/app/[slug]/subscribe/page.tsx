@@ -60,7 +60,7 @@ interface MpBrickController {
 interface MpBrickSettings {
   initialization: { amount: number; preferenceId?: string }
   customization?: {
-    paymentMethods?: { creditCard?: string; debitCard?: string }
+    paymentMethods?: { creditCard?: string; debitCard?: string; mercadoPago?: string }
     visual?: { style?: { theme?: string } }
   }
   callbacks: {
