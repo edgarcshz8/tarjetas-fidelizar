@@ -126,9 +126,27 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ ok: true })
   }
 
+  // Determinar duración del período comparando el monto cobrado con el precio del plan
+  const ANNUAL_MONTHS = 10
+  let periodDays = 30 // default mensual
+
+  if (planId) {
+    const plan = await prisma.plan.findUnique({
+      where: { id: planId },
+      select: { priceClp: true },
+    })
+    if (plan) {
+      const annualAmount = plan.priceClp * ANNUAL_MONTHS
+      // Si el monto cobrado coincide con el precio anual → 365 días
+      if (payment.transaction_amount === annualAmount) {
+        periodDays = 365
+      }
+    }
+  }
+
   // Activar suscripción — idempotente
   const now = new Date()
-  const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+  const periodEnd = new Date(now.getTime() + periodDays * 24 * 60 * 60 * 1000)
 
   const updated = await prisma.subscription.updateMany({
     where: {
