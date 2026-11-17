@@ -140,7 +140,10 @@ export default function SubscribePage() {
   useEffect(() => {
     fetch('/api/public/plans')
       .then(r => r.json())
-      .then((data: DbPlan[]) => setPlans(data))
+      .then((data: DbPlan[]) => {
+        setPlans(data)
+        if (data.length === 1) setSelectedPlan(data[0])
+      })
       .catch(() => setPlans([]))
       .finally(() => setPlansLoading(false))
   }, [])
