@@ -31,8 +31,8 @@ interface CheckoutRequestBody {
   businessId: string
   planId: string
   billingPeriod?: 'monthly' | 'annual'
-  payerEmail: string
-  payerName: string
+  payerEmail?: string
+  payerName?: string
 }
 
 interface MpPreferenceResponse {
@@ -61,11 +61,11 @@ async function handleCheckout(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'JSON inválido' }, { status: 400 })
   }
 
-  const { businessId, planId, billingPeriod = 'monthly', payerEmail, payerName } = body
+  const { businessId, planId, billingPeriod = 'monthly', payerEmail: bodyPayerEmail, payerName: bodyPayerName } = body
 
-  if (!businessId || !planId || !payerEmail || !payerName) {
+  if (!businessId || !planId) {
     return NextResponse.json(
-      { error: 'businessId, planId, payerEmail y payerName son requeridos' },
+      { error: 'businessId y planId son requeridos' },
       { status: 400 },
     )
   }
@@ -89,6 +89,13 @@ async function handleCheckout(request: NextRequest): Promise<NextResponse> {
   if (!plan || !plan.isActive) {
     return NextResponse.json({ error: 'Plan no encontrado o inactivo' }, { status: 404 })
   }
+
+  // Email/nombre del pagador: desde body si se envía, si no desde el dueño en BD
+  const owner = !bodyPayerEmail
+    ? await prisma.user.findFirst({ where: { businessId, role: 'OWNER' }, select: { email: true, name: true } })
+    : null
+  const payerEmail = bodyPayerEmail ?? owner?.email
+  const payerName  = bodyPayerName  ?? owner?.name ?? business.name
 
   // Rule 1: API key desde variable de entorno — nunca hardcodeada
   const accessToken = process.env.MP_ACCESS_TOKEN
@@ -118,7 +125,7 @@ async function handleCheckout(request: NextRequest): Promise<NextResponse> {
         unit_price: unitPrice, // CLP: sin decimales
       },
     ],
-    payer: { email: payerEmail, name: payerName },
+    ...(payerEmail ? { payer: { email: payerEmail, name: payerName } } : {}),
     // external_reference = "businessId:planId" para correlacionar en el webhook
     external_reference: `${businessId}:${planId}`,
     back_urls: {
