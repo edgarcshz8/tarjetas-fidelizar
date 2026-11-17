@@ -19,8 +19,7 @@ function verifySignature(req: NextRequest, dataId: string): void {
   }
   console.log(`[mp-webhook] secret: ${secret.slice(0, 4)}...${secret.slice(-4)} (len=${secret.length})`)
 
-  const xSig   = req.headers.get('x-signature')   ?? ''
-  const xReqId = req.headers.get('x-request-id')  ?? ''
+  const xSig = req.headers.get('x-signature') ?? ''
 
   if (!xSig) throw new WebhookSignatureError('cabecera x-signature ausente')
 
@@ -39,25 +38,26 @@ function verifySignature(req: NextRequest, dataId: string): void {
   const ageSecs = Math.floor(Date.now() / 1000) - Number(ts)
   if (ageSecs > 300) throw new WebhookTimestampError(ageSecs)
 
-  console.log(`[mp-webhook] xSig="${xSig}" xReqId="${xReqId}" ts=${ts} v1_prefix=${v1.slice(0, 8)}`)
+  // Traefik (Dokploy) sobreescribe x-request-id con su propio UUID, rompiendo la firma.
+  // Usamos solo id + ts en el manifest; el replay protection lo maneja webhookEvent.
+  const manifest = `id:${dataId};ts:${ts};`
 
-  // Probar 4 variantes del manifest para diagnosticar cuál coincide
-  const variants: Array<{ label: string; m: string }> = [
-    { label: 'A con-reqid  con-;',   m: `id:${dataId};request-id:${xReqId};ts:${ts};` },
-    { label: 'B sin-reqid  con-;',   m: `id:${dataId};ts:${ts};` },
-    { label: 'C con-reqid  sin-;',   m: `id:${dataId};request-id:${xReqId};ts:${ts}` },
-    { label: 'D sin-reqid  sin-;',   m: `id:${dataId};ts:${ts}` },
-  ]
-  let matchedManifest: string | null = null
-  for (const { label, m } of variants) {
-    const h = crypto.createHmac('sha256', secret).update(m).digest('hex')
-    const ok = h === v1
-    console.log(`[mp-webhook] variant ${label}: ${ok ? 'MATCH ✓' : 'no match'} prefix=${h.slice(0, 8)}`)
-    if (ok && !matchedManifest) matchedManifest = m
+  console.log(`[mp-webhook] manifest="${manifest}"`)
+
+  const expected = crypto.createHmac('sha256', secret).update(manifest).digest('hex')
+
+  let match: boolean
+  try {
+    match = crypto.timingSafeEqual(
+      Buffer.from(expected, 'hex'),
+      Buffer.from(v1,       'hex'),
+    )
+  } catch {
+    match = false
   }
 
-  if (!matchedManifest) {
-    console.error(`[mp-webhook] ninguna variante coincide — verificar MP_WEBHOOK_SECRET`)
+  if (!match) {
+    console.error(`[mp-webhook] HMAC esperado=${expected} recibido=${v1}`)
     throw new WebhookSignatureError('HMAC no coincide')
   }
 }
