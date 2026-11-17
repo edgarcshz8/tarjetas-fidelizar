@@ -128,6 +128,8 @@ export default function SubscribePage() {
   // Error inline en el Brick para pagos rechazados (no navega fuera del form)
   const [brickError, setBrickError] = useState<string | null>(null)
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('monthly')
+  const [payerEmail, setPayerEmail] = useState('')
+  const [payerName, setPayerName] = useState('')
 
   const brickControllerRef = useRef<MpBrickController | null>(null)
   const sdkLoadedRef = useRef(false)
@@ -208,7 +210,7 @@ export default function SubscribePage() {
   }
 
   async function handlePlanSelection() {
-    if (!selectedPlan || !slug) return
+    if (!selectedPlan || !slug || !payerEmail || !payerName) return
     setLoading(true)
     setErrorMsg('')
 
@@ -227,6 +229,8 @@ export default function SubscribePage() {
           businessId: bizData.id,
           planId: selectedPlan.id,
           billingPeriod,
+          payerEmail,
+          payerName,
         }),
       })
 
@@ -525,10 +529,37 @@ export default function SubscribePage() {
           </div>
         )}
 
+        {/* Datos de facturación */}
+        <div className="bg-white/10 border border-white/20 rounded-2xl p-6 mb-6">
+          <h2 className="text-white font-semibold mb-4">Datos de facturación</h2>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-slate-300 text-sm mb-1">Nombre completo</label>
+              <input
+                type="text"
+                value={payerName}
+                onChange={e => setPayerName(e.target.value)}
+                placeholder="Juan Pérez"
+                className="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-slate-400 focus:outline-none focus:border-white/50 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-slate-300 text-sm mb-1">Correo electrónico</label>
+              <input
+                type="email"
+                value={payerEmail}
+                onChange={e => setPayerEmail(e.target.value)}
+                placeholder="tu@email.com"
+                className="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-slate-400 focus:outline-none focus:border-white/50 text-sm"
+              />
+            </div>
+          </div>
+        </div>
+
         {selectedPlan && (
           <button
             onClick={handlePlanSelection}
-            disabled={loading}
+            disabled={loading || !payerEmail || !payerName}
             className="w-full py-4 bg-white text-slate-900 font-semibold rounded-2xl hover:bg-slate-100 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-2xl"
           >
             {loading ? (
