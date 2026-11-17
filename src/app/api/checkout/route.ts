@@ -88,13 +88,11 @@ async function handleCheckout(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Plan no encontrado o inactivo' }, { status: 404 })
   }
 
-  // Obtener email/nombre del dueño del negocio para el pagador en MP
+  // Obtener email/nombre del dueño del negocio para el pagador en MP (opcional)
   const owner = await prisma.user.findFirst({
     where: { businessId, role: 'OWNER' },
     select: { email: true, name: true },
   })
-  const payerEmail = owner?.email ?? 'noreply@misstamps.com'
-  const payerName  = owner?.name  ?? business.name
 
   // Rule 1: API key desde variable de entorno — nunca hardcodeada
   const accessToken = process.env.MP_ACCESS_TOKEN
@@ -124,11 +122,8 @@ async function handleCheckout(request: NextRequest): Promise<NextResponse> {
         unit_price: unitPrice, // CLP: sin decimales
       },
     ],
-    payer: {
-      // Rule 11: mínimo PII — solo los campos requeridos por MP
-      name: payerName,
-      email: payerEmail,
-    },
+    // Incluir payer solo si tenemos email real — evita rechazos antifraude de MP
+    ...(owner?.email ? { payer: { email: owner.email, name: owner.name } } : {}),
     // external_reference = businessId para correlacionar en el webhook
     external_reference: businessId,
     back_urls: {
