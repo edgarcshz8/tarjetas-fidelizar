@@ -116,7 +116,7 @@ function rejectionMessage(statusDetail?: string | null): string {
 export default function SubscribePage() {
   const params = useParams()
   const slug = params?.slug as string
-  const { data: session } = useSession()
+  const { data: session } = useSession() ?? {}
 
   const [plans, setPlans] = useState<DbPlan[]>([])
   const [plansLoading, setPlansLoading] = useState(true)

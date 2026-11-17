@@ -14,14 +14,14 @@ export const runtime = 'nodejs'
 function verifySignature(req: NextRequest, dataId: string): void {
   const secret = process.env.MP_WEBHOOK_SECRET
   if (!secret) {
-    if (process.env.NODE_ENV !== 'production') return // omitir en dev si no hay secret
+    if (process.env.NODE_ENV !== 'production') return
     throw new WebhookSignatureError('MP_WEBHOOK_SECRET no configurado')
   }
 
-  const xSig = req.headers.get('x-signature') ?? ''
-  const xReqId = req.headers.get('x-request-id') ?? ''
+  const xSig   = req.headers.get('x-signature')   ?? ''
+  const xReqId = req.headers.get('x-request-id')  ?? ''
 
-  if (!xSig || !xReqId) throw new WebhookSignatureError('cabeceras x-signature / x-request-id ausentes')
+  if (!xSig) throw new WebhookSignatureError('cabecera x-signature ausente')
 
   // Parsear "ts=1234,v1=abc..."
   const parts: Record<string, string> = {}
@@ -34,14 +34,32 @@ function verifySignature(req: NextRequest, dataId: string): void {
   const v1 = parts['v1']
   if (!ts || !v1) throw new WebhookSignatureError('formato x-signature inválido')
 
-  // Validar que el webhook no tenga más de 5 minutos de antigüedad
+  // Validar antigüedad (5 min)
   const ageSecs = Math.floor(Date.now() / 1000) - Number(ts)
   if (ageSecs > 300) throw new WebhookTimestampError(ageSecs)
 
-  const manifest = `id:${dataId};request-id:${xReqId};ts:${ts};`
+  // Manifest: omitir request-id si la cabecera está ausente (comportamiento oficial de MP)
+  const manifest = xReqId
+    ? `id:${dataId};request-id:${xReqId};ts:${ts};`
+    : `id:${dataId};ts:${ts};`
+
+  console.log(`[mp-webhook] manifest="${manifest}" ts=${ts} xReqId=${xReqId || '(ausente)'}`)
+
   const expected = crypto.createHmac('sha256', secret).update(manifest).digest('hex')
 
-  if (!crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(v1, 'hex'))) {
+  // timingSafeEqual lanza RangeError si los buffers tienen distinto largo
+  let match: boolean
+  try {
+    match = crypto.timingSafeEqual(
+      Buffer.from(expected, 'hex'),
+      Buffer.from(v1,      'hex'),
+    )
+  } catch {
+    match = false
+  }
+
+  if (!match) {
+    console.error(`[mp-webhook] HMAC esperado=${expected} recibido=${v1}`)
     throw new WebhookSignatureError('HMAC no coincide')
   }
 }
