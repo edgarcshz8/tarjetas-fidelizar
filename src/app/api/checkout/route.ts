@@ -31,6 +31,8 @@ interface CheckoutRequestBody {
   businessId: string
   planId: string
   billingPeriod?: 'monthly' | 'annual'
+  payerEmail?: string
+  payerName?: string
 }
 
 interface MpPreferenceResponse {
@@ -59,7 +61,7 @@ async function handleCheckout(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'JSON inválido' }, { status: 400 })
   }
 
-  const { businessId, planId, billingPeriod = 'monthly' } = body
+  const { businessId, planId, billingPeriod = 'monthly', payerEmail: bodyPayerEmail, payerName: bodyPayerName } = body
 
   if (!businessId || !planId) {
     return NextResponse.json(
@@ -88,11 +90,12 @@ async function handleCheckout(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Plan no encontrado o inactivo' }, { status: 404 })
   }
 
-  // Obtener email/nombre del dueño del negocio para el pagador en MP (opcional)
-  const owner = await prisma.user.findFirst({
-    where: { businessId, role: 'OWNER' },
-    select: { email: true, name: true },
-  })
+  // Email/nombre del pagador: prioridad → sesión (body) → dueño en BD
+  const owner = (!bodyPayerEmail)
+    ? await prisma.user.findFirst({ where: { businessId, role: 'OWNER' }, select: { email: true, name: true } })
+    : null
+  const resolvedPayerEmail = bodyPayerEmail ?? owner?.email
+  const resolvedPayerName  = bodyPayerName  ?? owner?.name ?? business.name
 
   // Rule 1: API key desde variable de entorno — nunca hardcodeada
   const accessToken = process.env.MP_ACCESS_TOKEN
@@ -123,7 +126,7 @@ async function handleCheckout(request: NextRequest): Promise<NextResponse> {
       },
     ],
     // Incluir payer solo si tenemos email real — evita rechazos antifraude de MP
-    ...(owner?.email ? { payer: { email: owner.email, name: owner.name } } : {}),
+    ...(resolvedPayerEmail ? { payer: { email: resolvedPayerEmail, name: resolvedPayerName } } : {}),
     // external_reference = businessId para correlacionar en el webhook
     external_reference: businessId,
     back_urls: {

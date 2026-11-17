@@ -19,6 +19,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -115,6 +116,7 @@ function rejectionMessage(statusDetail?: string | null): string {
 export default function SubscribePage() {
   const params = useParams()
   const slug = params?.slug as string
+  const { data: session } = useSession()
 
   const [plans, setPlans] = useState<DbPlan[]>([])
   const [plansLoading, setPlansLoading] = useState(true)
@@ -181,7 +183,7 @@ export default function SubscribePage() {
     try {
       brickControllerRef.current = await bricksBuilder.create('payment', 'mp-payment-brick', {
         initialization: {
-          amount: selectedPlan.priceClp,
+          amount: billingPeriod === 'annual' ? selectedPlan.priceClp * 10 : selectedPlan.priceClp,
           preferenceId: preferenceId!,
         },
         customization: {
@@ -227,6 +229,7 @@ export default function SubscribePage() {
           businessId: bizData.id,
           planId: selectedPlan.id,
           billingPeriod,
+          ...(session?.user?.email ? { payerEmail: session.user.email, payerName: session.user.name ?? session.user.email } : {}),
         }),
       })
 
