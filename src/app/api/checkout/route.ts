@@ -127,6 +127,7 @@ async function handleCheckout(request: NextRequest): Promise<NextResponse> {
       pending: `${appUrl}/checkout/pending?business=${businessId}`,
     },
     auto_return: 'approved',
+    notification_url: `${appUrl}/api/webhooks/mercadopago?source_news=webhooks`,
     statement_descriptor: 'TARJ FIDELIZAR',
     metadata: {
       plan_id: plan.id,

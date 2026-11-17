@@ -53,19 +53,28 @@ function verifySignature(req: NextRequest, rawDataId: string): void {
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const url = req.nextUrl
 
+  console.log(`[mp-webhook] query="${url.search}" ua="${req.headers.get('user-agent') ?? '-'}"`)
+
+  // ── Clasificar el tipo de notificación ───────────────────────────────────────
+  // Webhook firmado (panel): ?data.id=X&type=payment  → tiene x-signature, procesar
+  // IPN legacy:              ?id=X&topic=payment       → sin firma, ignorar (el
+  //   evento equivalente llega siempre por la vía firmada cuando se usa source_news=webhooks)
+
+  const topic = url.searchParams.get('topic')
+  if (topic) {
+    console.log(`[mp-webhook] IPN legacy (topic=${topic}) — ignorado`)
+    return NextResponse.json({ ok: true })
+  }
+
   // MP envía data.id como query param en el nuevo formato
   const dataId =
     url.searchParams.get('data.id') ??
     url.searchParams.get('id') ??
     null
 
-  const eventType =
-    url.searchParams.get('type') ??
-    url.searchParams.get('topic') ??
-    null
+  const eventType = url.searchParams.get('type') ?? null
 
   if (!dataId || eventType !== 'payment') {
-    // No es un evento de pago — ignorar silenciosamente
     return NextResponse.json({ ok: true })
   }
 
@@ -79,8 +88,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     throw err
   }
 
-  // Obtener eventId para deduplicación (x-request-id o body.id)
-  const eventId = req.headers.get('x-request-id') ?? `${eventType}:${dataId}:${Date.now()}`
+  // Deduplicación por x-request-id
+  const eventId = req.headers.get('x-request-id') ?? `payment:${dataId}:${Date.now()}`
 
   // Replay protection — Rule 9
   try {
@@ -114,6 +123,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   console.log(`[mp-webhook] payment ${dataId} status=${payment.status} ref=${payment.external_reference ?? '-'}`)
 
   if (payment.status !== 'approved') {
+    return NextResponse.json({ ok: true })
+  }
+
+  // Idempotencia: si el pago ya activó una suscripción, no reprocesar
+  const alreadyActive = await prisma.subscription.findFirst({
+    where: { mpSubscriptionId: String(dataId), status: 'ACTIVE' },
+  })
+  if (alreadyActive) {
+    console.log(`[mp-webhook] pago ${dataId} ya procesado (sub=${alreadyActive.id}) — ignorando`)
     return NextResponse.json({ ok: true })
   }
 

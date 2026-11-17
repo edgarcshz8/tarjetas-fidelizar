@@ -77,7 +77,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           identification: formData.payer?.identification as any,
         },
         external_reference:  `${businessId}:${planId}`,
-        notification_url:    `${appUrl}/api/webhooks/mercadopago`,
+        notification_url:    `${appUrl}/api/webhooks/mercadopago?source_news=webhooks`,
         description:         `Suscripción ${plan.name} (${periodLabel}) — Tarjetas de Fidelización`,
         statement_descriptor: 'TARJ FIDELIZAR',
       },
