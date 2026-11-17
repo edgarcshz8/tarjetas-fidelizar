@@ -72,19 +72,19 @@ export default function AdminNav({ session }: { session: Session }) {
         </div>
 
         {/* Mobile nav */}
-        <nav className="md:hidden flex gap-1 pb-3">
+        <nav className="md:hidden flex gap-1 pb-3 overflow-x-auto scrollbar-none">
           {navItems.map(item => (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium flex-1 transition ${
+              className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium min-w-[60px] flex-shrink-0 transition ${
                 pathname === item.href
                   ? 'bg-white/20 text-white'
                   : 'text-slate-400 hover:bg-white/10 hover:text-white'
               }`}
             >
               <FontAwesomeIcon icon={item.icon} className="w-5 h-5" />
-              {item.label}
+              <span className="truncate max-w-[56px] text-center">{item.label}</span>
             </Link>
           ))}
         </nav>
