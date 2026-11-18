@@ -17,14 +17,19 @@ interface Plan {
   features: string[]
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 interface Props {
   plans: Plan[]
   businessId: string
+  userEmail: string
   activeSubscriptionStatus: 'PENDING' | 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELLED' | null
 }
 
-export default function SubscriptionPlans({ plans, businessId, activeSubscriptionStatus }: Props) {
+export default function SubscriptionPlans({ plans, businessId, userEmail, activeSubscriptionStatus }: Props) {
   const router = useRouter()
+  const [mpPayerEmail, setMpPayerEmail] = useState(userEmail)
+  const [emailError, setEmailError] = useState<string | null>(null)
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
@@ -36,13 +41,20 @@ export default function SubscriptionPlans({ plans, businessId, activeSubscriptio
     activeSubscriptionStatus === 'PENDING'
 
   async function handleSubscribe(planId: string) {
+    const trimmedEmail = mpPayerEmail.trim()
+    if (!EMAIL_RE.test(trimmedEmail)) {
+      setEmailError('Ingresa un email válido antes de continuar.')
+      return
+    }
+    setEmailError(null)
     setLoadingPlanId(planId)
     setErrorMsg(null)
     try {
       const res = await fetch('/api/subscriptions/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planId, businessId }),
+        // Rule 11: email sent only to identify payer's MP account; never stored client-side
+        body: JSON.stringify({ planId, businessId, mpPayerEmail: trimmedEmail }),
       })
       const data = (await res.json()) as { init_point?: string; error?: string }
       if (!res.ok || !data.init_point) {
@@ -68,6 +80,29 @@ export default function SubscriptionPlans({ plans, businessId, activeSubscriptio
 
   return (
     <div>
+      {/* MP payer email — shown only when user can initiate a checkout */}
+      {canSubscribe && (
+        <div className="mb-6">
+          <label htmlFor="mp-payer-email" className="block text-sm font-medium text-gray-700 mb-1">
+            Email de tu cuenta Mercado Pago
+          </label>
+          <input
+            id="mp-payer-email"
+            type="email"
+            value={mpPayerEmail}
+            onChange={(e) => { setMpPayerEmail(e.target.value); setEmailError(null); setErrorMsg(null) }}
+            placeholder="tu@email.com"
+            className="w-full md:w-96 px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm"
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            Debe ser el email con el que inicias sesión en Mercado Pago Chile
+          </p>
+          {emailError && (
+            <p className="mt-1 text-xs text-red-600">{emailError}</p>
+          )}
+        </div>
+      )}
+
       {errorMsg && (
         <div className="mb-6 rounded-lg bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm">
           {errorMsg}

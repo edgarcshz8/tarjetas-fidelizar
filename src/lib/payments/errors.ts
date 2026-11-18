@@ -46,3 +46,13 @@ export class MercadoPagoApiError extends PaymentError {
     super(message, 'MP_API_ERROR', 502)
   }
 }
+
+export class MercadoPagoPayerSiteError extends PaymentError {
+  constructor() {
+    super(
+      'El email ingresado no corresponde a una cuenta de Mercado Pago Chile. Usa el email con el que entras a Mercado Pago.',
+      'MP_PAYER_SITE_MISMATCH',
+      422,
+    )
+  }
+}

@@ -100,7 +100,30 @@ Ajusta el precio y features segun tu estructura de planes final.
 
 ---
 
-## 7. Prueba de sanidad en produccion
+## 7. Email del pagador y entornos de prueba
+
+> **Importante — error "Payer is associated with a different site"**
+>
+> Mercado Pago valida que el `payer_email` pertenezca a una cuenta del mismo país
+> que el vendedor (sitio MLC = Chile).
+>
+> - **Con `MP_ACCESS_TOKEN=TEST-...` (sandbox):** el email del pagador DEBE ser el
+>   de un **usuario de prueba comprador** creado para Chile (MLC).
+>   Créalo en: Developers → tu app → Cuentas de prueba → Crear cuenta →
+>   País: Chile → Rol: Comprador.
+>   El email tendrá la forma `test_user_XXXXXXXXX@testuser.com`.
+>
+> - **Con `MP_ACCESS_TOKEN=APP_USR-...` (producción):** el email del pagador DEBE ser
+>   el de una cuenta MP chilena real distinta a la cuenta vendedora.
+>   El flujo de checkout usa el email que el usuario ingresa en el campo
+>   "Email de tu cuenta Mercado Pago" en la pantalla de suscripción.
+>
+> Si el email no coincide con el sitio, la API responde 400 y la app muestra:
+> "El email ingresado no corresponde a una cuenta de Mercado Pago Chile."
+
+---
+
+## 8. Prueba de sanidad en produccion
 
 - [ ] Con credenciales live, abre `/admin/subscription` en produccion.
 - [ ] Inicia un flujo de suscripcion con una tarjeta real (monto minimo recomendado: $1 o
@@ -113,7 +136,7 @@ Ajusta el precio y features segun tu estructura de planes final.
 
 ---
 
-## 8. Monitoreo post-lanzamiento
+## 9. Monitoreo post-lanzamiento
 
 - [ ] Configura una alerta en el panel de MP para fallos de cobro recurrente.
 - [ ] Revisa los logs del contenedor las primeras 24 horas buscando:
@@ -125,7 +148,7 @@ Ajusta el precio y features segun tu estructura de planes final.
 
 ---
 
-## 9. Consideraciones legales (Chile — Rule 11)
+## 10. Consideraciones legales (Chile — Rule 11)
 
 - [ ] Emite **boletas o facturas electronicas (DTE)** por cada suscripcion cobrada a los
       negocios clientes, segun normativa del SII.
@@ -138,7 +161,7 @@ Ajusta el precio y features segun tu estructura de planes final.
 
 ---
 
-## 10. Checklist final antes de publicar
+## 11. Checklist final antes de publicar
 
 - [ ] `.env.example` NO contiene credenciales live (solo prefijos TEST/placeholders).
 - [ ] `.gitignore` cubre `.env` y `.env.local`.

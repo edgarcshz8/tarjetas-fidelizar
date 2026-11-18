@@ -15,11 +15,15 @@ import {
   PlanNotFoundError,
   SubscriptionConflictError,
   MercadoPagoApiError,
+  MercadoPagoPayerSiteError,
 } from '@/lib/payments/errors'
 
 const bodySchema = z.object({
   planId: z.string().min(1),
   businessId: z.string().min(1),
+  // Rule 11: payer email provided by the authenticated user to identify their MP account —
+  // used only in the MP API call, never persisted. Falls back to session email.
+  mpPayerEmail: z.string().trim().toLowerCase().email().optional(),
 })
 
 function getMpClient(): MercadoPagoConfig {
@@ -54,7 +58,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Parámetros inválidos.' }, { status: 400 })
   }
 
-  const { planId, businessId } = body
+  const { planId, businessId, mpPayerEmail } = body
+  const payerEmail = mpPayerEmail ?? session.user.email ?? ''
 
   if (session.user.businessId !== businessId) {
     return NextResponse.json({ error: 'No autorizado.' }, { status: 403 })
@@ -85,8 +90,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       mpSubscription = await preApprovalClient.create({
         body: {
           reason: `${plan.name} — MissStamps`,
-          // Rule 11: payer_email from authenticated session only
-          payer_email: session.user.email,
+          // Rule 11: email provided by the authenticated user for their MP account; not persisted
+          payer_email: payerEmail,
           external_reference: businessId,
           back_url: backUrl,
           auto_recurring: {
@@ -101,8 +106,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       })
     } catch (mpErr) {
       const { status, message, cause } = extractMpError(mpErr)
-      // Rule 8: log status/message/cause — never the access token
-      console.error('[subscriptions:checkout] MP API error status=%d message=%s cause=%j', status, message, cause)
+      // Rule 8: log status/message/cause — never the access token; mask email to avoid PII in logs
+      const maskedEmail = payerEmail.replace(/^(.{2}).*(@.*)$/, '$1***$2')
+      console.error(
+        '[subscriptions:checkout] MP API error status=%d message=%s cause=%j email=%s',
+        status, message, cause, maskedEmail,
+      )
+      if (status === 400 && message.toLowerCase().includes('different site')) {
+        throw new MercadoPagoPayerSiteError()
+      }
       throw new MercadoPagoApiError(`Mercado Pago respondió ${status}: ${message}`)
     }
 
@@ -133,6 +145,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: err.message }, { status: err.httpStatus })
     }
     if (err instanceof PlanNotFoundError) {
+      return NextResponse.json({ error: err.message }, { status: err.httpStatus })
+    }
+    if (err instanceof MercadoPagoPayerSiteError) {
       return NextResponse.json({ error: err.message }, { status: err.httpStatus })
     }
     if (err instanceof MercadoPagoApiError) {

@@ -107,6 +107,7 @@ export default async function SubscriptionPage() {
             features: p.features as string[],
           }))}
           businessId={session.user.businessId}
+          userEmail={session.user.email ?? ''}
           activeSubscriptionStatus={currentSubscription?.status ?? null}
         />
       </div>
