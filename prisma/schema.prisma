@@ -153,6 +153,7 @@ enum PlanInterval {
 }
 
 enum SubscriptionStatus {
+  PENDING    // valor existente en producción
   TRIALING
   ACTIVE
   PAST_DUE
@@ -161,16 +162,17 @@ enum SubscriptionStatus {
 
 /// Planes de suscripción disponibles. mpPlanId almacena el preapproval_plan id de MP.
 model Plan {
-  id          String       @id @default(cuid())
-  name        String
-  description String?
-  price       Int          // CLP, zero-decimal (Rule 6)
-  interval    PlanInterval @default(MONTHLY)
-  features    Json         @default("[]")
-  mpPlanId    String?      // preapproval_plan id de Mercado Pago
-  isActive    Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id           String       @id @default(cuid())
+  name         String
+  description  String?
+  price        Int          @map("priceClp") // columna se llama priceClp en DB; zero-decimal CLP (Rule 6)
+  intervalDays Int          @default(30)     // columna legada en DB
+  interval     PlanInterval @default(MONTHLY)
+  features     Json         @default("[]")
+  mpPlanId     String?      // preapproval_plan id de Mercado Pago
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
   subscriptions Subscription[]
 
@@ -184,7 +186,9 @@ model Subscription {
   planId             String
   status             SubscriptionStatus @default(TRIALING)
   mpSubscriptionId   String?            @unique // preapproval id de MP
-  mpPayerId          String?            // payer id en MP
+  mpPreapprovalId    String?            // columna existente en DB (preapproval id legado)
+  mpPayerId          String?
+  mpStatusDetail     String?            // columna existente en DB
   currentPeriodStart DateTime?
   currentPeriodEnd   DateTime?
   canceledAt         DateTime?

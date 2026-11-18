@@ -20,7 +20,7 @@ interface Plan {
 interface Props {
   plans: Plan[]
   businessId: string
-  activeSubscriptionStatus: 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELLED' | null
+  activeSubscriptionStatus: 'PENDING' | 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELLED' | null
 }
 
 export default function SubscriptionPlans({ plans, businessId, activeSubscriptionStatus }: Props) {
