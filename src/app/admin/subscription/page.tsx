@@ -43,6 +43,23 @@ export default async function SubscriptionPage() {
           Pago.
         </p>
 
+        {currentSubscription &&
+          (currentSubscription.status === 'TRIALING' ||
+            currentSubscription.status === 'PENDING') && (
+            <div className="mb-6 rounded-xl border border-yellow-200 bg-yellow-50 p-4 flex items-start gap-3">
+              <span className="text-yellow-500 text-xl leading-none mt-0.5">⏳</span>
+              <div>
+                <p className="font-semibold text-yellow-800 text-sm">
+                  Tu pago está siendo confirmado
+                </p>
+                <p className="text-yellow-700 text-sm mt-0.5">
+                  Mercado Pago está procesando tu suscripción. Esto puede tardar unos minutos.
+                  La página se actualizará automáticamente cuando se confirme.
+                </p>
+              </div>
+            </div>
+          )}
+
         {currentSubscription && (
           <div className="mb-8 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <p className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-1">
@@ -65,7 +82,9 @@ export default async function SubscriptionPage() {
                     ? 'Cancelada'
                     : currentSubscription.status === 'PAST_DUE'
                       ? 'Pago pendiente'
-                      : 'En período de prueba'}
+                      : currentSubscription.status === 'TRIALING'
+                        ? 'Confirmando pago…'
+                        : 'Pendiente'}
               </span>
             </p>
             {currentSubscription.currentPeriodEnd && (
