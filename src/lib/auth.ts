@@ -32,17 +32,7 @@ export const authOptions: NextAuthOptions = {
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
-          include: {
-            business: {
-              include: {
-                subscriptions: {
-                  where: { status: 'ACTIVE' },
-                  orderBy: { createdAt: 'desc' },
-                  take: 1,
-                },
-              },
-            },
-          },
+          include: { business: true },
         })
 
         if (!user) {
@@ -57,18 +47,6 @@ export const authOptions: NextAuthOptions = {
         }
 
         resetLoginAttempts(credentials.email)
-
-        // SUPERADMIN no requiere suscripción
-        if (user.role !== 'SUPERADMIN') {
-          const now = new Date()
-          const activeSub = user.business.subscriptions[0]
-          const isExpired =
-            !activeSub ||
-            (activeSub.currentPeriodEnd != null && activeSub.currentPeriodEnd < now)
-          if (isExpired) {
-            throw new Error(`NoActiveSubscription:${user.business.slug}`)
-          }
-        }
 
         return {
           id: user.id,
