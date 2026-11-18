@@ -63,6 +63,37 @@ async function main() {
     },
   })
 
+  // ─── Planes de suscripción ────────────────────────────────────────────────
+  await prisma.plan.upsert({
+    where: { id: 'plan-basico' },
+    update: {},
+    create: {
+      id: 'plan-basico',
+      name: 'Plan Básico',
+      description: 'Para negocios que están empezando.',
+      price: 9990,
+      intervalDays: 30,
+      interval: 'MONTHLY',
+      features: ['Apple Wallet', 'Google Wallet', '1 programa de fidelización', 'Clientes ilimitados'],
+      isActive: true,
+    },
+  })
+
+  await prisma.plan.upsert({
+    where: { id: 'plan-pro' },
+    update: {},
+    create: {
+      id: 'plan-pro',
+      name: 'Plan Pro',
+      description: 'Para negocios en crecimiento.',
+      price: 29990,
+      intervalDays: 30,
+      interval: 'MONTHLY',
+      features: ['Apple Wallet', 'Google Wallet', 'Programas ilimitados', 'Clientes ilimitados', 'Push notifications', 'Soporte prioritario'],
+      isActive: true,
+    },
+  })
+
   console.log('Seed completado:')
   console.log(`  Super admin: edgar.cshz8@gmail.com / ${superAdminPassword}  → /superadmin`)
   console.log(`  Business: ${business.name} (slug: ${business.slug})`)
