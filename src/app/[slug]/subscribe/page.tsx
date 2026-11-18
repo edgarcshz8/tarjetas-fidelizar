@@ -45,6 +45,24 @@ declare global {
   }
 }
 
+// Espera hasta que security.js popule window.MP_DEVICE_SESSION_ID.
+// Reintenta cada 100 ms hasta timeoutMs; devuelve '' si agota el tiempo.
+function waitForDeviceSessionId(timeoutMs = 3000): Promise<string> {
+  if (window.MP_DEVICE_SESSION_ID) return Promise.resolve(window.MP_DEVICE_SESSION_ID)
+  return new Promise<string>(resolve => {
+    const start = Date.now()
+    const timer = setInterval(() => {
+      if (window.MP_DEVICE_SESSION_ID) {
+        clearInterval(timer)
+        resolve(window.MP_DEVICE_SESSION_ID)
+      } else if (Date.now() - start >= timeoutMs) {
+        clearInterval(timer)
+        resolve('')
+      }
+    }, 100)
+  })
+}
+
 interface MpInstance {
   bricks(): MpBricksBuilder
 }
@@ -288,6 +306,8 @@ export default function SubscribePage() {
 
       if (!businessId || !selectedPlan) throw new Error('Estado inválido')
 
+      const deviceSessionId = await waitForDeviceSessionId(3000)
+
       const res = await fetch('/api/process-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -297,7 +317,8 @@ export default function SubscribePage() {
           planId:          selectedPlan.id,
           billingPeriod,
           payerName,
-          deviceSessionId: window.MP_DEVICE_SESSION_ID ?? '',
+          payerEmail,
+          deviceSessionId,
         }),
       })
 

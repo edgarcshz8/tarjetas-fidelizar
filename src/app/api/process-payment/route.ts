@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 
 export const runtime = 'nodejs'
 
-const ANNUAL_MONTHS = 10 // 2 meses gratis
+const ANNUAL_MONTHS = 10
 
 interface ProcessPaymentBody {
   formData: {
@@ -22,6 +22,13 @@ interface ProcessPaymentBody {
   billingPeriod?: 'monthly' | 'annual'
   deviceSessionId?: string
   payerName?: string
+  payerEmail?: string
+}
+
+function maskEmail(email: string): string {
+  const [local, domain] = email.split('@')
+  if (!domain) return '***'
+  return `${local.slice(0, 2)}***@${domain}`
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -32,13 +39,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'JSON inválido' }, { status: 400 })
   }
 
-  const { formData, businessId, planId, billingPeriod = 'monthly', deviceSessionId, payerName } = body
+  const {
+    formData,
+    businessId,
+    planId,
+    billingPeriod = 'monthly',
+    deviceSessionId,
+    payerName,
+    payerEmail,
+  } = body
 
   if (!businessId || !planId || !formData?.token) {
-    return NextResponse.json({ error: 'Faltan campos requeridos (token, businessId, planId)' }, { status: 400 })
+    return NextResponse.json(
+      { error: 'Faltan campos requeridos (token, businessId, planId)' },
+      { status: 400 },
+    )
   }
 
-  // Obtener precio del plan desde la BD — NUNCA confiar en el monto del cliente
   const plan = await prisma.plan.findUnique({
     where: { id: planId },
     select: { id: true, name: true, priceClp: true, isActive: true },
@@ -63,21 +80,24 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const isAnnual = billingPeriod === 'annual'
   const transactionAmount = isAnnual ? plan.priceClp * ANNUAL_MONTHS : plan.priceClp
   const periodLabel = isAnnual ? 'anual' : 'mensual'
-  const periodDays = isAnnual ? 365 : 30
+  const periodDays  = isAnnual ? 365 : 30
 
-  // Nombre del pagador desde el formulario de facturación
-  const nameParts   = (payerName ?? '').trim().split(/\s+/).filter(Boolean)
-  const firstName   = nameParts[0]  ?? ''
-  const lastName    = nameParts.slice(1).join(' ') || firstName
+  const nameParts = (payerName ?? '').trim().split(/\s+/).filter(Boolean)
+  const firstName = nameParts[0] ?? ''
+  const lastName  = nameParts.slice(1).join(' ') || firstName
 
-  // Fecha de registro del dueño del negocio para additional_info
+  // Priorizar el email que entrega el Brick; caer al billing form como fallback
+  const payerEmailFinal = formData.payer?.email ?? payerEmail ?? ''
+
   const owner = await prisma.user.findFirst({
     where:  { businessId, role: 'OWNER' },
     select: { createdAt: true },
   })
 
-  // IP real del cliente (primer elemento de x-forwarded-for)
   const ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? '127.0.0.1'
+
+  // Referencia única por intento para correlación en MP Dashboard
+  const attemptRef = `${businessId}:${planId}:${crypto.randomUUID()}`
 
   const paymentBody = {
     transaction_amount:  transactionAmount,
@@ -86,11 +106,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     issuer_id:           formData.issuer_id,
     installments:        formData.installments ?? 1,
     three_d_secure_mode: 'optional' as const,
+    binary_mode:         true,
     payer: {
-      email:          formData.payer?.email,
+      email:          payerEmailFinal,
       first_name:     firstName || undefined,
       last_name:      lastName  || undefined,
-      identification: formData.payer?.identification as any,
+      identification: formData.payer?.identification,
     },
     additional_info: {
       ip_address: ipAddress,
@@ -110,23 +131,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         registration_date: owner?.createdAt.toISOString(),
       },
     },
-    external_reference:   `${businessId}:${planId}`,
+    external_reference:   attemptRef,
     notification_url:     `${appUrl}/api/webhooks/mercadopago?source_news=webhooks`,
     description:          `Suscripción ${plan.name} (${periodLabel}) — MissStamps`,
     statement_descriptor: 'MISSTAMPS',
   }
 
-  console.log('[process-payment] creando pago', {
+  const hasDeviceSession = !!deviceSessionId
+  console.log('[process-payment] iniciando pago', {
     businessId,
     planId,
     transactionAmount,
-    paymentMethodId: formData.payment_method_id,
-    payerEmail:      formData.payer?.email,
-    firstName,
-    lastName,
-    ipAddress,
-    hasDeviceSession: !!deviceSessionId,
-    three_d_secure_mode: 'optional',
+    paymentMethodId:   formData.payment_method_id,
+    payerEmail:        payerEmailFinal ? maskEmail(payerEmailFinal) : '(vacío)',
+    deviceSessionSent: hasDeviceSession,
+    deviceSessionLen:  deviceSessionId?.length ?? 0,
+    attemptRef,
   })
 
   let result: Awaited<ReturnType<typeof paymentClient.create>>
@@ -138,20 +158,28 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         ...(deviceSessionId ? { meliSessionId: deviceSessionId } : {}),
       },
     })
-  } catch (err: any) {
-    // MP SDK v2 wraps los errores en err.cause[0].description
-    const detail = err?.cause?.[0]?.description ?? err?.message ?? 'Error desconocido'
+  } catch (err: unknown) {
+    const mpErr = err as { cause?: Array<{ description?: string }>; message?: string }
+    const detail = mpErr?.cause?.[0]?.description ?? mpErr?.message ?? 'Error desconocido'
     console.error(`[process-payment] MP error businessId=${businessId}:`, detail)
     return NextResponse.json({ error: `Error al procesar el pago: ${detail}` }, { status: 502 })
   }
 
-  // Actualizar suscripción en BD
-  const now = new Date()
+  console.log('[process-payment] resultado', {
+    paymentId:    result.id,
+    status:       result.status,
+    statusDetail: result.status_detail ?? '-',
+    businessId,
+    deviceSessionSent: hasDeviceSession,
+    payerEmail:   payerEmailFinal ? maskEmail(payerEmailFinal) : '(vacío)',
+  })
+
+  const now       = new Date()
   const periodEnd = new Date(now.getTime() + periodDays * 24 * 60 * 60 * 1000)
   const isApproved = result.status === 'approved'
 
   const existing = await prisma.subscription.findFirst({
-    where: { businessId, planId, status: 'PENDING' },
+    where:   { businessId, planId, status: 'PENDING' },
     orderBy: { createdAt: 'desc' },
   })
 
@@ -168,12 +196,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     await prisma.subscription.create({ data: { businessId, planId, ...subData } })
   }
 
-  console.log(`[process-payment] businessId=${businessId} plan=${plan.name} status=${result.status} detail=${result.status_detail ?? '-'}`)
-
   return NextResponse.json({
     id:                             result.id,
     status:                         result.status,
     status_detail:                  result.status_detail,
-    three_ds_external_resource_url: (result as any).three_ds_external_resource_url ?? undefined,
+    three_ds_external_resource_url: result.three_ds_info?.external_resource_url,
   })
 }
