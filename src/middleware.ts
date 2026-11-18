@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
 // La autenticación del panel se valida en src/app/admin/layout.tsx y en cada API
-// con getServerSession, por eso aquí no se usa withAuth.
+// con getServerSession, por eso aquí no se usa withAuthx.
 
 export function middleware(req: NextRequest) {
   // La app no usa Server Actions: cualquier petición con "Next-Action" viene de bots/escáneres.
