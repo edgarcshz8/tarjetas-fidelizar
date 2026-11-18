@@ -93,7 +93,7 @@ NEXT_PUBLIC_MP_PUBLIC_KEY=TEST-...   # para el brick en frontend
 
 Nota: `NEXT_PUBLIC_MP_PUBLIC_KEY` debe agregarse al `.env.local` además de `MP_PUBLIC_KEY`,
 ya que el brick la consume en el cliente.
-
+  
 ## Próximos pasos
 
 1. Copiar `.env.example` a `.env.local` y completar con tus credenciales TEST de MP.
