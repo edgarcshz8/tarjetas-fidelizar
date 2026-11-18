@@ -23,8 +23,9 @@ model Business {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  programs LoyaltyProgram[]
-  users    User[]
+  programs     LoyaltyProgram[]
+  users        User[]
+  subscription Subscription?
 
   @@map("businesses")
 }
@@ -140,5 +141,70 @@ model User {
   stamps   Stamp[]
 
   @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────────
+// BILLING — Mercado Pago Suscripciones (preapproval API)
+// ─────────────────────────────────────────────────────────────
+
+enum PlanInterval {
+  MONTHLY
+  ANNUAL
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+}
+
+/// Planes de suscripción disponibles. mpPlanId almacena el preapproval_plan id de MP.
+model Plan {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  price       Int          // CLP, zero-decimal (Rule 6)
+  interval    PlanInterval @default(MONTHLY)
+  features    Json         @default("[]")
+  mpPlanId    String?      // preapproval_plan id de Mercado Pago
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+/// Suscripción de un Business. Una sola suscripción activa por Business.
+model Subscription {
+  id                 String             @id @default(cuid())
+  businessId         String             @unique
+  planId             String
+  status             SubscriptionStatus @default(TRIALING)
+  mpSubscriptionId   String?            @unique // preapproval id de MP
+  mpPayerId          String?            // payer id en MP
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  canceledAt         DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  plan     Plan     @relation(fields: [planId], references: [id])
+
+  @@map("subscriptions")
+}
+
+/// Registro de eventos de webhook procesados — deduplicación idempotente.
+/// Rule 8: nunca almacenar el payload completo del evento.
+model WebhookEvent {
+  id          String   @id @default(cuid())
+  mpEventId   String   @unique // id del evento en MP (dedup key)
+  type        String
+  processedAt DateTime @default(now())
+
+  @@map("webhook_events")
 }
 
