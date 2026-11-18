@@ -31,7 +31,9 @@ export default function SubscriptionPlans({ plans, businessId, activeSubscriptio
   const canSubscribe =
     activeSubscriptionStatus === null ||
     activeSubscriptionStatus === 'CANCELLED' ||
-    activeSubscriptionStatus === 'PAST_DUE'
+    activeSubscriptionStatus === 'PAST_DUE' ||
+    activeSubscriptionStatus === 'TRIALING' ||
+    activeSubscriptionStatus === 'PENDING'
 
   async function handleSubscribe(planId: string) {
     setLoadingPlanId(planId)
@@ -109,7 +111,11 @@ export default function SubscriptionPlans({ plans, businessId, activeSubscriptio
               disabled={!canSubscribe || loadingPlanId !== null}
               className="mt-auto w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loadingPlanId === plan.id ? 'Procesando...' : 'Suscribirse'}
+              {loadingPlanId === plan.id
+                ? 'Procesando...'
+                : activeSubscriptionStatus === 'TRIALING' || activeSubscriptionStatus === 'PENDING'
+                  ? 'Reintentar pago'
+                  : 'Suscribirse'}
             </button>
           </div>
         ))}
