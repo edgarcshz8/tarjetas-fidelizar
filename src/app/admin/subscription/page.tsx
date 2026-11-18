@@ -11,7 +11,7 @@ import SubscriptionPlans from './_components/SubscriptionPlans'
 export const metadata = { title: 'Suscripción — Tarjetas Fidelizar' }
 
 /** Format an integer CLP amount as Chilean pesos: $29.990 */
-export function formatCLP(amount: number): string {
+function formatCLP(amount: number): string {
   return new Intl.NumberFormat('es-CL', {
     style: 'currency',
     currency: 'CLP',
