@@ -2,9 +2,8 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faGift } from '@fortawesome/free-solid-svg-icons'
 import PageSizeSelector from './PageSizeSelector'
+import RedeemButton from './RedeemButton'
 
 const ALLOWED_SIZES = [10, 25, 50, 100]
 const DEFAULT_SIZE  = 10
@@ -150,9 +149,10 @@ export default async function CustomersPage({
                 </td>
                 <td className="px-6 py-4">
                   {pass.rewardReady ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                      <FontAwesomeIcon icon={faGift} className="w-3 h-3" /> Premio listo
-                    </span>
+                    <RedeemButton
+                      serialNumber={pass.serialNumber}
+                      customerName={pass.customer.name}
+                    />
                   ) : (
                     <span className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">
                       Activo
