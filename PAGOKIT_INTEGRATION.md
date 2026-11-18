@@ -81,7 +81,7 @@ Referencia completa: https://www.mercadopago.cl/developers/es/docs/checkout-api/
 ## Proximos pasos
 
 1. Copia `.env.example` a `.env.local` y completa las credenciales TEST de tu app en el panel de MP.
-2. La migracion se aplica automaticamente en el proximo deploy via `scripts/start.sh` → `prisma migrate deploy`.
+2. La migracion se aplica automaticamente en el proxismo deploy via `scripts/start.sh` → `prisma migrate deploy`.
    Para aplicarla localmente sin deploy: `npx prisma migrate deploy` (no `migrate dev`).
 3. Registra el endpoint de webhook en el panel de MP apuntando a `https://<tuapp>/api/webhook/mercadopago/`
    y suscribete a los eventos `subscription_preapproval` y `subscription_authorized_payment`.
