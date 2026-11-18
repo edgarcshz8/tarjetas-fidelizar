@@ -132,7 +132,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       },
     },
     external_reference:   attemptRef,
-    notification_url:     `${appUrl}/api/webhooks/mercadopago?source_news=webhooks`,
+    notification_url:     `${appUrl}/api/webhook/mercadopago?source_news=webhooks`,
     description:          `Suscripción ${plan.name} (${periodLabel}) — MissStamps`,
     statement_descriptor: 'MISSTAMPS',
   }

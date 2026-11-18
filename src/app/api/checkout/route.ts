@@ -119,15 +119,15 @@ async function handleCheckout(request: NextRequest): Promise<NextResponse> {
       },
     ],
     payer: { email: payerEmail, name: payerName },
-    // external_reference = "businessId:planId" para correlacionar en el webhook
-    external_reference: `${businessId}:${planId}`,
+    // external_reference = businessId para que el webhook handler pueda hacer el lookup directo
+    external_reference: businessId,
     back_urls: {
       success: `${appUrl}/checkout/success?business=${businessId}`,
       failure: `${appUrl}/checkout/failure?business=${businessId}`,
       pending: `${appUrl}/checkout/pending?business=${businessId}`,
     },
     auto_return: 'approved',
-    notification_url: `${appUrl}/api/webhooks/mercadopago?source_news=webhooks`,
+    notification_url: `${appUrl}/api/webhook/mercadopago?source_news=webhooks`,
     statement_descriptor: 'TARJ FIDELIZAR',
     metadata: {
       plan_id: plan.id,

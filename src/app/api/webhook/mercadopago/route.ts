@@ -65,6 +65,17 @@ interface MpPaymentResponse {
   date_created?: string
 }
 
+// ─── Tipos de la respuesta de GET /preapproval/{id} ──────────────────────────
+
+interface MpPreapprovalResponse {
+  id: string
+  status: string              // authorized | paused | cancelled | pending | created
+  external_reference?: string // businessId (igual que en checkout)
+  preapproval_plan_id?: string
+  payer_id?: number
+  next_payment_date?: string
+}
+
 // ─── Verificación de firma HMAC ──────────────────────────────────────────────
 
 /**
@@ -99,8 +110,8 @@ function verifyMpSignature(
     .digest('hex')
 
   // timingSafeEqual para prevenir timing attacks
-  const expectedBuf = Buffer.from(expectedHmac, 'utf8')
-  const receivedBuf = Buffer.from(v1, 'utf8')
+  const expectedBuf = Buffer.from(expectedHmac, 'hex')
+  const receivedBuf = Buffer.from(v1, 'hex')
 
   if (
     expectedBuf.length !== receivedBuf.length ||
@@ -139,6 +150,7 @@ async function fetchPaymentFromMp(paymentId: string): Promise<MpPaymentResponse>
 
 // ─── Handler principal ───────────────────────────────────────────────────────
 
+// @pagokit:signature-verified
 export async function POST(request: NextRequest): Promise<NextResponse> {
   // Rule 10: verificar tamaño del body antes de leer
   const contentLength = request.headers.get('content-length')
