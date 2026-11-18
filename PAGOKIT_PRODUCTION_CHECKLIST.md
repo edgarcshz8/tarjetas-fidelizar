@@ -123,7 +123,37 @@ Ajusta el precio y features segun tu estructura de planes final.
 
 ---
 
-## 8. Prueba de sanidad en produccion
+## 8. Prueba del flujo "Pagar con tarjeta" (Card Payment Brick)
+
+> **Cobro de validación MP:** al crear una preapproval con `card_token_id` y
+> `status: 'authorized'`, Mercado Pago realiza un **cobro de validación** (monto
+> mínimo, generalmente $1 o el equivalente en CLP). Este cobro se acredita
+> automáticamente y **no es un cargo real** — confirma que la tarjeta es válida.
+> La primera cuota completa se acredita en aproximadamente **1 hora** tras la autorización.
+
+**Tarjetas de prueba para Chile (sandbox MLC):**
+
+| Escenario | Número | CVV | Vencimiento |
+|-----------|--------|-----|-------------|
+| Pago aprobado (Visa) | 4509953566233704 | 123 | 11/25 |
+| Pago aprobado (Mastercard) | 5031755734530604 | 123 | 11/25 |
+| Fondos insuficientes | 4000000000000002 | 123 | 11/25 |
+| Tarjeta rechazada | 4000000000000044 | 123 | 11/25 |
+| Llama a tu banco | 4000000000000028 | 123 | 11/25 |
+
+> Fuente oficial: https://www.mercadopago.cl/developers/es/docs/checkout-bricks/additional-content/test-cards
+
+**Pasos para probar:**
+- [ ] Abre `/admin/subscription`, elige un plan → "Pagar con tarjeta".
+- [ ] Usa el número 4509953566233704 y verifica que el webhook `subscription_preapproval`
+      llega y la tabla `subscriptions` cambia a `ACTIVE`.
+- [ ] Usa el número 4000000000000002 y verifica que la API responde con el mensaje
+      "Tu tarjeta no tiene fondos suficientes." sin exponer datos de tarjeta en logs.
+- [ ] Verifica en logs que el `cardTokenId` nunca aparece — solo status/message/email enmascarado.
+
+---
+
+## 9. Prueba de sanidad en produccion
 
 - [ ] Con credenciales live, abre `/admin/subscription` en produccion.
 - [ ] Inicia un flujo de suscripcion con una tarjeta real (monto minimo recomendado: $1 o

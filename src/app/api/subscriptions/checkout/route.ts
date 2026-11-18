@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import MercadoPagoConfig, { PreApproval } from 'mercadopago'
+import { PreApproval } from 'mercadopago'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/lib/auth'
@@ -17,6 +17,7 @@ import {
   MercadoPagoApiError,
   MercadoPagoPayerSiteError,
 } from '@/lib/payments/errors'
+import { getMpClient, extractMpError, maskEmail } from '@/lib/payments/mp'
 
 const bodySchema = z.object({
   planId: z.string().min(1),
@@ -25,25 +26,6 @@ const bodySchema = z.object({
   // used only in the MP API call, never persisted. Falls back to session email.
   mpPayerEmail: z.string().trim().toLowerCase().email().optional(),
 })
-
-function getMpClient(): MercadoPagoConfig {
-  const accessToken = process.env.MP_ACCESS_TOKEN
-  if (!accessToken) throw new MercadoPagoApiError('MP_ACCESS_TOKEN is not set.')
-  return new MercadoPagoConfig({ accessToken })
-}
-
-/** Extracts a readable error message from an MP SDK error without leaking the access token. */
-function extractMpError(err: unknown): { status: number; message: string; cause?: unknown } {
-  if (err && typeof err === 'object') {
-    const e = err as Record<string, unknown>
-    // MP SDK v2 wraps HTTP errors with { status, message, cause }
-    const status = typeof e['status'] === 'number' ? e['status'] : 502
-    const message = typeof e['message'] === 'string' ? e['message'] : 'Unknown MP error'
-    const cause = e['cause'] ?? e['error'] ?? undefined
-    return { status, message, cause }
-  }
-  return { status: 502, message: String(err) }
-}
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const session = await getServerSession(authOptions)
@@ -107,7 +89,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     } catch (mpErr) {
       const { status, message, cause } = extractMpError(mpErr)
       // Rule 8: log status/message/cause — never the access token; mask email to avoid PII in logs
-      const maskedEmail = payerEmail.replace(/^(.{2}).*(@.*)$/, '$1***$2')
+      const maskedEmail = maskEmail(payerEmail)
       console.error(
         '[subscriptions:checkout] MP API error status=%d message=%s cause=%j email=%s',
         status, message, cause, maskedEmail,

@@ -1,0 +1,11 @@
+{
+  "scripts": [
+    {
+      "src": "https://sdk.mercadopago.com/js/v2",
+      "justification": "MercadoPago Bricks SDK — card tokenisation client-side (PCI DSS Rule 12). Raw card data never reaches the merchant server; MP issues a one-time token.",
+      "authorised_by": "edgar.cshz8@gmail.com",
+      "integrity": null,
+      "note": "MP does not publish SRI hashes for this SDK. Monitor https://www.mercadopago.cl/developers/en/docs/changelog/announcements for version changes and re-review on each major SDK update."
+    }
+  ]
+}
