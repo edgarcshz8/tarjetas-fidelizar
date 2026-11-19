@@ -34,14 +34,17 @@ interface Props {
   businessId: string
   userEmail: string
   activeSubscriptionStatus: 'PENDING' | 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELLED' | null
+  hasActiveMpSubscription: boolean
 }
 
-export default function SubscriptionPlans({ plans, businessId, userEmail, activeSubscriptionStatus }: Props) {
+export default function SubscriptionPlans({ plans, businessId, userEmail, activeSubscriptionStatus, hasActiveMpSubscription }: Props) {
   const router = useRouter()
   const [flow, setFlow] = useState<FlowState>({ mode: 'idle' })
   const [mpPayerEmail, setMpPayerEmail] = useState(userEmail)
   const [emailError, setEmailError] = useState<string | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const [syncMsg, setSyncMsg] = useState<string | null>(null)
 
   const canSubscribe =
     activeSubscriptionStatus === null ||
@@ -108,6 +111,26 @@ export default function SubscriptionPlans({ plans, businessId, userEmail, active
     router.refresh()
   }, [router])
 
+  async function handleSync() {
+    setSyncing(true)
+    setSyncMsg(null)
+    try {
+      const res = await fetch('/api/subscriptions/sync', { method: 'POST' })
+      const data = (await res.json()) as { status?: string; error?: string }
+      if (!res.ok) {
+        setSyncMsg(data.error ?? 'No se pudo verificar el estado.')
+      } else if (data.status === 'ACTIVE') {
+        router.refresh()
+      } else {
+        setSyncMsg(`Estado en Mercado Pago: ${data.status ?? 'desconocido'}. Intenta en unos minutos.`)
+      }
+    } catch {
+      setSyncMsg('Error de red. Verifica tu conexión e intenta de nuevo.')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
   if (plans.length === 0) {
     return (
       <p className="text-gray-400 text-center py-16">
@@ -123,8 +146,28 @@ export default function SubscriptionPlans({ plans, businessId, userEmail, active
         ? flow.planId
         : null
 
+  const showSyncButton =
+    hasActiveMpSubscription &&
+    (activeSubscriptionStatus === 'TRIALING' || activeSubscriptionStatus === 'PENDING')
+
   return (
     <div>
+      {/* ── Sync / verify payment button ──────────────────────────────────── */}
+      {showSyncButton && (
+        <div className="mb-6">
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="rounded-xl bg-yellow-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {syncing ? 'Verificando…' : '🔄 Verificar estado del pago'}
+          </button>
+          {syncMsg && (
+            <p className="mt-2 text-sm text-gray-600">{syncMsg}</p>
+          )}
+        </div>
+      )}
+
       {/* ── Plan grid ─────────────────────────────────────────────────────── */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {plans.map((plan) => {

@@ -109,6 +109,7 @@ export default async function SubscriptionPage() {
           businessId={session.user.businessId}
           userEmail={session.user.email ?? ''}
           activeSubscriptionStatus={currentSubscription?.status ?? null}
+          hasActiveMpSubscription={!!currentSubscription?.mpSubscriptionId}
         />
       </div>
     </main>
