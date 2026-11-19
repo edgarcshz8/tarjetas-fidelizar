@@ -105,6 +105,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // Webhook is the authoritative source of truth; this is an optimistic initial status.
     const subscriptionStatus = mpSubscription.status === 'authorized' ? 'ACTIVE' : 'TRIALING'
 
+    // Set period dates immediately on ACTIVE so the UI shows them without waiting for the webhook
+    const periodStart = new Date()
+    const periodEnd = new Date(periodStart)
+    if (plan.interval === 'MONTHLY') {
+      periodEnd.setMonth(periodEnd.getMonth() + 1)
+    } else {
+      periodEnd.setFullYear(periodEnd.getFullYear() + 1)
+    }
+    const periodData = subscriptionStatus === 'ACTIVE'
+      ? { currentPeriodStart: periodStart, currentPeriodEnd: periodEnd }
+      : {}
+
     await prisma.subscription.upsert({
       where: { businessId },
       create: {
@@ -112,12 +124,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         planId,
         status: subscriptionStatus,
         mpSubscriptionId: mpSubscription.id,
+        ...periodData,
       },
       update: {
         planId,
         status: subscriptionStatus,
         mpSubscriptionId: mpSubscription.id,
         canceledAt: null,
+        ...periodData,
       },
     })
 

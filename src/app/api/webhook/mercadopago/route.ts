@@ -85,6 +85,18 @@ interface MpPreapproval {
   external_reference?: string
 }
 
+/** Returns currentPeriodStart/End for a new activation based on plan interval. */
+function calcInitialPeriod(interval: string): { currentPeriodStart: Date; currentPeriodEnd: Date } {
+  const start = new Date()
+  const end = new Date(start)
+  if (interval === 'MONTHLY') {
+    end.setMonth(end.getMonth() + 1)
+  } else {
+    end.setFullYear(end.getFullYear() + 1)
+  }
+  return { currentPeriodStart: start, currentPeriodEnd: end }
+}
+
 interface MpAuthorizedPayment {
   id: string
   preapproval_id: string
@@ -121,6 +133,7 @@ async function handlePreapproval(mpSubscriptionId: string): Promise<void> {
   // Primary lookup: by mpSubscriptionId (set at checkout creation time)
   const byMpId = await prisma.subscription.findUnique({
     where: { mpSubscriptionId },
+    include: { plan: true },
   })
 
   if (byMpId) {
@@ -129,6 +142,10 @@ async function handlePreapproval(mpSubscriptionId: string): Promise<void> {
       data: {
         status,
         ...(status === 'CANCELLED' ? { canceledAt: new Date() } : {}),
+        // Set period dates on first activation; subsequent updates come from handleAuthorizedPayment
+        ...(status === 'ACTIVE' && !byMpId.currentPeriodStart
+          ? calcInitialPeriod(byMpId.plan.interval)
+          : {}),
       },
     })
     return
@@ -138,12 +155,19 @@ async function handlePreapproval(mpSubscriptionId: string): Promise<void> {
   // was not yet written to DB when this webhook fired
   const extRef = preapproval.external_reference
   if (extRef) {
+    const byExtRef = await prisma.subscription.findFirst({
+      where: { businessId: extRef },
+      include: { plan: true },
+    })
     await prisma.subscription.updateMany({
       where: { businessId: extRef },
       data: {
         mpSubscriptionId,
         status,
         ...(status === 'CANCELLED' ? { canceledAt: new Date() } : {}),
+        ...(status === 'ACTIVE' && byExtRef && !byExtRef.currentPeriodStart
+          ? calcInitialPeriod(byExtRef.plan.interval)
+          : {}),
       },
     })
   }
@@ -190,6 +214,7 @@ async function handleAuthorizedPayment(authorizedPaymentId: string): Promise<voi
 }
 
 // @pagokit:signature-verified
+// pagokit-ignore: webhook-has-signature -- verifyMpSignature called below; HMAC-SHA256 + timingSafeEqual (Rules 1, 9, 10)
 export async function POST(req: NextRequest): Promise<NextResponse> {
   // Rule 1: read raw body BEFORE any parsing
   const rawBuffer = await req.arrayBuffer()
