@@ -148,6 +148,8 @@ export async function createLoyaltyObject(passData: GooglePassData): Promise<str
     rewardDescription: program.rewardDescription,
     stampEmoji: program.stampEmoji ?? '⭐',
     rewardReady,
+    latitude:  program.business.latitude,
+    longitude: program.business.longitude,
   })
 
   try {
@@ -227,8 +229,10 @@ function buildLoyaltyObjectPayload(params: {
   rewardDescription: string
   stampEmoji?: string
   rewardReady: boolean
+  latitude?: number | null
+  longitude?: number | null
 }) {
-  const { objectId, classId, serialNumber, customer, currentStamps, stampsRequired, rewardDescription, stampEmoji = '⭐', rewardReady } = params
+  const { objectId, classId, serialNumber, customer, currentStamps, stampsRequired, rewardDescription, stampEmoji = '⭐', rewardReady, latitude, longitude } = params
 
   const rawAppUrl = process.env.APP_URL || 'http://localhost:3000'
   const appUrl    = /^https?:\/\//.test(rawAppUrl) ? rawAppUrl : `https://${rawAppUrl}`
@@ -274,7 +278,26 @@ function buildLoyaltyObjectPayload(params: {
       value: objectId.split('.pass_')[1] || objectId,
       alternateText: objectId.split('.pass_')[1] || objectId,
     },
+    ...(latitude != null && longitude != null
+      ? { locations: [{ latitude, longitude }] }
+      : {}),
   }
+}
+
+/** PATCH a single loyalty object with updated coordinates. Used when the business saves new location. */
+export async function patchGoogleObjectLocation(
+  objectId: string,
+  latitude: number,
+  longitude: number,
+): Promise<void> {
+  const auth = getGoogleAuth()
+  const client = await auth.getClient()
+  await (client as any).request({
+    url: `${GOOGLE_WALLET_API}/loyaltyObject/${encodeURIComponent(objectId)}`,
+    method: 'PATCH',
+    data: { locations: [{ latitude, longitude }] },
+  })
+  console.log(`[google-wallet] patchGoogleObjectLocation objectId=${objectId} lat=${latitude}`)
 }
 
 // ─── PUSH NOTIFICATION VÍA addMessage ────────────────────────────────────────

@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
-import { upsertLoyaltyClass } from '@/lib/google-wallet'
+import { upsertLoyaltyClass, patchGoogleObjectLocation } from '@/lib/google-wallet'
 
 export const runtime = 'nodejs'
 
@@ -47,7 +47,7 @@ export async function PATCH(req: NextRequest) {
     data,
   })
 
-  // Cuando cambian las coordenadas, actualizar la clase de Google Wallet con los datos nuevos.
+  // Cuando cambian las coordenadas, actualizar la clase de Google Wallet y los objetos existentes.
   // Fire-and-forget: no bloqueamos la respuesta al admin.
   if (data.latitude !== undefined || data.longitude !== undefined || data.locationName !== undefined) {
     prisma.loyaltyProgram.findMany({
@@ -60,6 +60,27 @@ export async function PATCH(req: NextRequest) {
         )
       }
     }).catch(err => console.error('[businesses] findPrograms for location sync:', err))
+  }
+
+  // Also PATCH all existing Google Wallet objects with the new coordinates.
+  // This fixes passes already saved before the location was configured.
+  if (data.latitude != null && data.longitude != null) {
+    const lat = data.latitude
+    const lng = data.longitude
+    prisma.customerPass.findMany({
+      where: {
+        program: { businessId: session.user.businessId },
+        googleObjectId: { not: null },
+      },
+      select: { googleObjectId: true },
+    }).then(passes => {
+      for (const pass of passes) {
+        if (!pass.googleObjectId) continue
+        patchGoogleObjectLocation(pass.googleObjectId, lat, lng).catch(err =>
+          console.error(`[businesses] patchGoogleObjectLocation objectId=${pass.googleObjectId}:`, err?.message ?? err)
+        )
+      }
+    }).catch(err => console.error('[businesses] findPasses for location sync:', err))
   }
 
   return NextResponse.json({ business })
