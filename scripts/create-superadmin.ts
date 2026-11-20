@@ -3,14 +3,13 @@ import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
-const SUPERADMIN_EMAIL    = 'edgar.cshz8@gmail.com'
-const SUPERADMIN_NAME     = 'Edgar Campos'
-const SUPERADMIN_PASSWORD = 'Fidelizar2024!'
+// Fallbacks for email/name are acceptable (non-secret). Never fallback for password.
+const SUPERADMIN_EMAIL    = process.env.SUPERADMIN_EMAIL ?? 'edgar.cshz8@gmail.com'
+const SUPERADMIN_NAME     = process.env.SUPERADMIN_NAME  ?? 'Edgar Campos'
+const SUPERADMIN_PASSWORD = process.env.SUPERADMIN_PASSWORD   // undefined = not set
 
 async function main() {
-  const hashedPassword = await bcrypt.hash(SUPERADMIN_PASSWORD, 12)
-
-  // Negocio plataforma — sólo existe para satisfacer el FK de User.businessId
+  // Platform business — only exists to satisfy the User.businessId FK
   const platform = await prisma.business.upsert({
     where: { slug: 'platform-system' },
     update: {},
@@ -23,9 +22,28 @@ async function main() {
     },
   })
 
-  const user = await prisma.user.upsert({
+  const existing = await prisma.user.findUnique({ where: { email: SUPERADMIN_EMAIL } })
+
+  if (!SUPERADMIN_PASSWORD) {
+    if (existing) {
+      // Ensure role is SUPERADMIN but never touch the password
+      await prisma.user.update({
+        where: { email: SUPERADMIN_EMAIL },
+        data: { role: 'SUPERADMIN' },
+      })
+      console.log('[superadmin] exists, password unchanged')
+    } else {
+      console.warn('[superadmin] WARNING: SUPERADMIN_PASSWORD not set and user does not exist — skipping creation')
+    }
+    return
+  }
+
+  const hashedPassword = await bcrypt.hash(SUPERADMIN_PASSWORD, 12)
+
+  await prisma.user.upsert({
     where: { email: SUPERADMIN_EMAIL },
-    update: { role: 'SUPERADMIN', password: hashedPassword },
+    // Never update password on restart — only ensure role
+    update: { role: 'SUPERADMIN' },
     create: {
       businessId: platform.id,
       email:      SUPERADMIN_EMAIL,
