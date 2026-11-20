@@ -7,6 +7,8 @@ import { faCircleCheck } from '@fortawesome/free-solid-svg-icons'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+type SubscriptionStatus = 'PENDING' | 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELLED'
+
 interface Business {
   id:            string
   name:          string
@@ -16,11 +18,13 @@ interface Business {
   program:       { name: string; stampsRequired: number; stampEmoji: string | null } | null
   employeeCount: number
   customerCount: number
+  subscription:  { status: SubscriptionStatus; planName: string | null; currentPeriodEnd: string | null } | null
 }
 
 interface Stats {
-  totalBusinesses: number
-  totalCustomers:  number
+  totalBusinesses:     number
+  totalCustomers:      number
+  activeSubscriptions: number
 }
 
 interface CreateResult {
@@ -31,6 +35,36 @@ interface CreateResult {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+const STATUS_CONFIG: Record<SubscriptionStatus, { label: string; className: string }> = {
+  ACTIVE:    { label: 'Activa',       className: 'bg-green-100 text-green-800' },
+  TRIALING:  { label: 'Confirmando',  className: 'bg-yellow-100 text-yellow-800' },
+  PENDING:   { label: 'Pendiente',    className: 'bg-yellow-100 text-yellow-800' },
+  PAST_DUE:  { label: 'Vencida',      className: 'bg-red-100 text-red-700' },
+  CANCELLED: { label: 'Cancelada',    className: 'bg-gray-100 text-gray-500' },
+}
+
+function SubscriptionBadge({ subscription }: { subscription: Business['subscription'] }) {
+  if (!subscription) {
+    return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-400">Sin suscripción</span>
+  }
+  const cfg = STATUS_CONFIG[subscription.status]
+  return (
+    <div>
+      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${cfg.className}`}>
+        {cfg.label}
+      </span>
+      {subscription.planName && (
+        <div className="text-xs text-gray-400 mt-0.5">{subscription.planName}</div>
+      )}
+      {subscription.currentPeriodEnd && subscription.status === 'ACTIVE' && (
+        <div className="text-xs text-gray-400 mt-0.5">
+          Vence: {new Date(subscription.currentPeriodEnd).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function slugify(text: string): string {
   return text
@@ -54,7 +88,7 @@ function formatDate(iso: string): string {
 
 export default function SuperAdminPage() {
   const [businesses, setBusinesses] = useState<Business[]>([])
-  const [stats,      setStats]      = useState<Stats>({ totalBusinesses: 0, totalCustomers: 0 })
+  const [stats,      setStats]      = useState<Stats>({ totalBusinesses: 0, totalCustomers: 0, activeSubscriptions: 0 })
   const [loading,    setLoading]    = useState(true)
   const [showForm,   setShowForm]   = useState(false)
   const [result,     setResult]     = useState<CreateResult | null>(null)
@@ -139,14 +173,18 @@ export default function SuperAdminPage() {
       </div>
 
       {/* ─── Stats ──────────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <p className="text-sm text-gray-500">Negocios activos</p>
+          <p className="text-sm text-gray-500">Negocios registrados</p>
           <p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalBusinesses}</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <p className="text-sm text-gray-500">Clientes totales</p>
           <p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalCustomers}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-green-200 p-5">
+          <p className="text-sm text-gray-500">Suscripciones activas</p>
+          <p className="text-3xl font-bold text-green-700 mt-1">{stats.activeSubscriptions}</p>
         </div>
       </div>
 
@@ -300,6 +338,7 @@ export default function SuperAdminPage() {
                 <tr className="bg-gray-50 text-xs font-medium text-gray-500 uppercase tracking-wide">
                   <th className="px-5 py-3 text-left">Negocio</th>
                   <th className="px-5 py-3 text-left">Propietario</th>
+                  <th className="px-5 py-3 text-left">Suscripción</th>
                   <th className="px-5 py-3 text-left">Programa</th>
                   <th className="px-4 py-3 text-right">Clientes</th>
                   <th className="px-4 py-3 text-right">Empleados</th>
@@ -323,6 +362,9 @@ export default function SuperAdminPage() {
                       ) : (
                         <span className="text-gray-400">—</span>
                       )}
+                    </td>
+                    <td className="px-5 py-4">
+                      <SubscriptionBadge subscription={b.subscription} />
                     </td>
                     <td className="px-5 py-4">
                       {b.program ? (

@@ -27,6 +27,9 @@ export async function GET() {
         select: { name: true, stampsRequired: true, stampEmoji: true },
         take: 1,
       },
+      subscription: {
+        select: { status: true, currentPeriodEnd: true, plan: { select: { name: true } } },
+      },
       _count: {
         select: { users: true },
       },
@@ -63,15 +66,24 @@ export async function GET() {
     program:      b.programs[0] ?? null,
     employeeCount: b._count.users,
     customerCount: passCountByBusiness[b.id] ?? 0,
+    subscription: b.subscription
+      ? {
+          status:           b.subscription.status,
+          planName:         b.subscription.plan?.name ?? null,
+          currentPeriodEnd: b.subscription.currentPeriodEnd ?? null,
+        }
+      : null,
   }))
 
   const totalCustomers = Object.values(passCountByBusiness).reduce((a, b) => a + b, 0)
+  const activeSubscriptions = result.filter(b => b.subscription?.status === 'ACTIVE').length
 
   return NextResponse.json({
     businesses: result,
     stats: {
       totalBusinesses: result.length,
       totalCustomers,
+      activeSubscriptions,
     },
   })
 }
