@@ -1,6 +1,14 @@
+import { redirect } from 'next/navigation'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { requireActiveSubscription } from '@/lib/subscriptionGuard'
 import QRScannerClient from '@/components/QRScannerClient'
 
-export default function ScannerPage() {
+export default async function ScannerPage() {
+  const session = await getServerSession(authOptions)
+  if (!session) redirect('/admin/login')
+  await requireActiveSubscription(session.user.businessId)
+
   return (
     <div>
       <div className="mb-6">

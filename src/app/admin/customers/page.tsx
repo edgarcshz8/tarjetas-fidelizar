@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { requireActiveSubscription } from '@/lib/subscriptionGuard'
 import PageSizeSelector from './PageSizeSelector'
 import RedeemButton from './RedeemButton'
 
@@ -15,6 +16,7 @@ export default async function CustomersPage({
 }) {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/admin/login')
+  await requireActiveSubscription(session.user.businessId)
 
   const search   = searchParams.search || ''
   const pageSize = ALLOWED_SIZES.includes(Number(searchParams.pageSize))

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { checkActiveSubscription } from '@/lib/subscriptionGuard'
 import { updateLoyaltyObject, pushGoogleWalletMessage } from '@/lib/google-wallet'
 import { pushPassUpdate } from '@/lib/apns'
 
@@ -15,6 +16,11 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
+
+  const subCheck = await checkActiveSubscription(session.user.businessId)
+  if (!subCheck.allowed) {
+    return NextResponse.json({ error: subCheck.error }, { status: subCheck.status })
   }
 
   const body = await req.json()

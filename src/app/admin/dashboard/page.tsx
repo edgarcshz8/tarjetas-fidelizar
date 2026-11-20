@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { requireActiveSubscription } from '@/lib/subscriptionGuard'
 import { generateQRDataURL } from '@/lib/qr'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
@@ -10,6 +11,7 @@ import { faTriangleExclamation, faUsers, faStar, faGift, faClock } from '@fortaw
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/admin/login')
+  await requireActiveSubscription(session.user.businessId)
 
   const rawAppUrl = process.env.APP_URL || 'http://localhost:3000'
   // Ensure APP_URL always has a protocol (guards against missing https:// in env)
