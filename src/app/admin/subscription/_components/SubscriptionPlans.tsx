@@ -259,20 +259,11 @@ export default function SubscriptionPlans({ plans, businessId, userEmail, active
               </button>
             </div>
 
-            {/* Method selector */}
+            {/* Method selector — card option hidden, auto-advances to mp-account */}
             {flow.mode === 'method-select' && (
               <div>
                 <p className="text-sm font-medium text-gray-700 mb-3">¿Cómo quieres pagar?</p>
                 <div className="flex flex-col sm:flex-row gap-3">
-                  <button
-                    onClick={() => chooseMethod('card')}
-                    className="flex-1 rounded-xl border-2 border-gray-200 bg-white px-4 py-4 text-left hover:border-blue-400 hover:bg-blue-50 transition-colors"
-                  >
-                    <p className="font-semibold text-gray-900 text-sm">💳 Pagar con tarjeta</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Sin cuenta de Mercado Pago. Crédito o débito.
-                    </p>
-                  </button>
                   <button
                     onClick={() => chooseMethod('mp_account')}
                     className="flex-1 rounded-xl border-2 border-gray-200 bg-white px-4 py-4 text-left hover:border-blue-400 hover:bg-blue-50 transition-colors"
