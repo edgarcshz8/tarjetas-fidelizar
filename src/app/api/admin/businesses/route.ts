@@ -49,9 +49,9 @@ export async function PATCH(req: NextRequest) {
     data,
   })
 
-  // Cuando cambian las coordenadas, actualizar la clase de Google Wallet y los objetos existentes.
+  // Cuando cambian coordenadas o el toggle de proximidad, actualizar la clase de Google Wallet.
   // Fire-and-forget: no bloqueamos la respuesta al admin.
-  if (data.latitude !== undefined || data.longitude !== undefined || data.locationName !== undefined) {
+  if (data.latitude !== undefined || data.longitude !== undefined || data.locationName !== undefined || data.proximityEnabled !== undefined) {
     prisma.loyaltyProgram.findMany({
       where: { businessId: session.user.businessId, isActive: true },
       include: { business: true },
