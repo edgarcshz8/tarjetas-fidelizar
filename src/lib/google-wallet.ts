@@ -69,12 +69,12 @@ export async function upsertLoyaltyClass(
     },
   }
 
-  // Geofencing: aparece en Google Wallet cuando el cliente está cerca.
+  // merchantLocations reemplaza al deprecado LatLongPoints (locations[]).
   // Si proximityEnabled=false se omite el campo y Google elimina el geofencing de la clase.
   if (program.business.proximityEnabled !== false
       && program.business.latitude != null
       && program.business.longitude != null) {
-    loyaltyClass.locations = [{
+    loyaltyClass.merchantLocations = [{
       latitude:  program.business.latitude,
       longitude: program.business.longitude,
     }]
@@ -152,8 +152,6 @@ export async function createLoyaltyObject(passData: GooglePassData): Promise<str
     rewardDescription: program.rewardDescription,
     stampEmoji: program.stampEmoji ?? '⭐',
     rewardReady,
-    latitude:  program.business.latitude,
-    longitude: program.business.longitude,
   })
 
   try {
@@ -196,19 +194,14 @@ export async function updateLoyaltyObject(passData: GooglePassData): Promise<voi
     rewardReady,
   })
 
-  const { latitude, longitude } = program.business
-
   const patchData: Record<string, any> = {
     loyaltyPoints:   payload.loyaltyPoints,
     textModulesData: payload.textModulesData,
     heroImage:       payload.heroImage,
   }
 
-  // Incluir coordenadas en el objeto para geofencing a nivel de object
-  // (belt + suspenders: la clase también las tiene vía upsertLoyaltyClass)
-  if (latitude != null && longitude != null) {
-    patchData.locations = [{ latitude, longitude }]
-  }
+  // El geofencing se gestiona a nivel de clase (merchantLocations en upsertLoyaltyClass).
+  // No se envía en el PATCH del objeto.
 
   try {
     await (client as any).request({
@@ -216,7 +209,7 @@ export async function updateLoyaltyObject(passData: GooglePassData): Promise<voi
       method: 'PATCH',
       data: patchData,
     })
-    console.log(`[google-wallet] updateLoyaltyObject PATCH objectId=${googleObjectId} stamps=${currentStamps} lat=${latitude ?? 'none'}`)
+    console.log(`[google-wallet] updateLoyaltyObject PATCH objectId=${googleObjectId} stamps=${currentStamps}`)
   } catch (err: any) {
     console.error(`[google-wallet] updateLoyaltyObject PATCH error objectId=${googleObjectId}:`, err?.response?.data?.error?.message ?? err?.message)
     throw err
@@ -233,10 +226,8 @@ function buildLoyaltyObjectPayload(params: {
   rewardDescription: string
   stampEmoji?: string
   rewardReady: boolean
-  latitude?: number | null
-  longitude?: number | null
 }) {
-  const { objectId, classId, serialNumber, customer, currentStamps, stampsRequired, rewardDescription, stampEmoji = '⭐', rewardReady, latitude, longitude } = params
+  const { objectId, classId, serialNumber, customer, currentStamps, stampsRequired, rewardDescription, stampEmoji = '⭐', rewardReady } = params
 
   const rawAppUrl = process.env.APP_URL || 'http://localhost:3000'
   const appUrl    = /^https?:\/\//.test(rawAppUrl) ? rawAppUrl : `https://${rawAppUrl}`
@@ -282,9 +273,6 @@ function buildLoyaltyObjectPayload(params: {
       value: objectId.split('.pass_')[1] || objectId,
       alternateText: objectId.split('.pass_')[1] || objectId,
     },
-    ...(latitude != null && longitude != null
-      ? { locations: [{ latitude, longitude }] }
-      : {}),
   }
 }
 
