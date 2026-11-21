@@ -74,16 +74,20 @@ export default function SettingsForm({ business, program }: Props) {
   })
 
   const [businessData, setBusinessData] = useState({
-    name:         business?.name         ?? '',
-    slug:         business?.slug         ?? '',
-    latitude:     business?.latitude     ?? null as number | null,
-    longitude:    business?.longitude    ?? null as number | null,
-    locationName: business?.locationName ?? '',
+    name:             business?.name             ?? '',
+    slug:             business?.slug             ?? '',
+    latitude:         business?.latitude         ?? null as number | null,
+    longitude:        business?.longitude        ?? null as number | null,
+    locationName:     business?.locationName     ?? '',
+    address:          business?.address          ?? '',
+    proximityEnabled: business?.proximityEnabled ?? true,
   })
   const [geoLoading,    setGeoLoading]    = useState(false)
   const [showMap,       setShowMap]       = useState(false)
   const [pushing,       setPushing]       = useState(false)
   const [pushResult,    setPushResult]    = useState<{ pushed: number; total: number } | null>(null)
+  const [syncing,       setSyncing]       = useState(false)
+  const [syncResult,    setSyncResult]    = useState<string | null>(null)
 
   const [section,       setSection]       = useState<FormSection>('programa')
   const [platform,      setPlatform]      = useState<PreviewPlatform>('apple')
@@ -144,10 +148,12 @@ export default function SettingsForm({ business, program }: Props) {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            name:         businessData.name,
-            latitude:     businessData.latitude,
-            longitude:    businessData.longitude,
-            locationName: businessData.locationName || null,
+            name:             businessData.name,
+            latitude:         businessData.latitude,
+            longitude:        businessData.longitude,
+            locationName:     businessData.locationName || null,
+            address:          businessData.address || null,
+            proximityEnabled: businessData.proximityEnabled,
           }),
         }),
       ])
@@ -527,7 +533,7 @@ export default function SettingsForm({ business, program }: Props) {
                   </Field>
                 </div>
                 <div className="mt-3">
-                  <Field label="Texto de notificación" hint="Mensaje que ve el cliente al acercarse">
+                  <Field label="Texto de notificación Apple Wallet" hint="Mensaje que ve el cliente al acercarse (Apple)">
                     <input
                       type="text"
                       value={businessData.locationName}
@@ -536,6 +542,84 @@ export default function SettingsForm({ business, program }: Props) {
                       placeholder={`¡Visita ${businessData.name || 'el negocio'}!`}
                     />
                   </Field>
+                </div>
+                <div className="mt-3">
+                  <Field label="Dirección del negocio" hint="Solo para referencia, no se muestra en la tarjeta">
+                    <input
+                      type="text"
+                      value={businessData.address}
+                      onChange={e => setBusinessData(d => ({ ...d, address: e.target.value }))}
+                      className="input"
+                      placeholder="Ej: Av. Principal 123, Santiago"
+                    />
+                  </Field>
+                </div>
+
+                {/* Google Wallet proximity toggle */}
+                <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">Notificaciones Google Wallet</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        La tarjeta aparece silenciosamente en Android al acercarse (~100–200 m). No genera banner ni sonido.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setBusinessData(d => ({ ...d, proximityEnabled: !d.proximityEnabled }))}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
+                        businessData.proximityEnabled ? 'bg-slate-900' : 'bg-gray-300'
+                      }`}
+                      role="switch"
+                      aria-checked={businessData.proximityEnabled}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ${
+                          businessData.proximityEnabled ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {businessData.proximityEnabled && businessData.latitude != null && businessData.longitude != null && (
+                    <div className="pt-2 border-t border-gray-200">
+                      <p className="text-xs text-gray-500 mb-2">
+                        Sincroniza la ubicación con Google Wallet para los clientes que ya tienen la tarjeta guardada.
+                      </p>
+                      <button
+                        type="button"
+                        disabled={syncing}
+                        onClick={async () => {
+                          setSyncing(true)
+                          setSyncResult(null)
+                          try {
+                            const res = await fetch('/api/admin/geo-debug', { method: 'POST' })
+                            const data = await res.json()
+                            if (res.ok) {
+                              const programResult = Object.values(data.results ?? {})[0] as any
+                              const ok = programResult?.googleObjectsOk ?? 0
+                              const failed = programResult?.googleObjectsFailed ?? 0
+                              setSyncResult(`✓ Sincronizado${ok > 0 ? ` · ${ok} tarjeta(s) actualizada(s)` : ''}${failed > 0 ? ` · ${failed} error(es)` : ''}`)
+                            } else {
+                              setSyncResult('Error al sincronizar')
+                            }
+                          } catch {
+                            setSyncResult('Error de conexión')
+                          } finally {
+                            setSyncing(false)
+                          }
+                        }}
+                        className="px-4 py-2 bg-slate-800 text-white text-sm font-semibold rounded-lg hover:bg-slate-700 transition disabled:opacity-50"
+                      >
+                        {syncing ? 'Sincronizando…' : 'Sincronizar con Google Wallet'}
+                      </button>
+                      {syncResult && (
+                        <p className={`mt-2 text-xs font-medium ${syncResult.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>
+                          {syncResult}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Push updates to existing passes */}

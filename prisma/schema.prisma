@@ -17,10 +17,12 @@ model Business {
   primaryColor   String   @default("#1a1a2e")
   secondaryColor String   @default("#ffffff")
   accentColor    String   @default("#e94560")
-  latitude       Float?
-  longitude      Float?
-  locationName   String?
-  createdAt      DateTime @default(now())
+  latitude         Float?
+  longitude        Float?
+  locationName     String?
+  address          String?
+  proximityEnabled Boolean  @default(true)
+  createdAt        DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   programs     LoyaltyProgram[]

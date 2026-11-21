@@ -38,7 +38,7 @@ export function buildLoyaltyClassId(programId: string): string {
 }
 
 export async function upsertLoyaltyClass(
-  program: LoyaltyProgram & { business: { name: string; latitude?: number | null; longitude?: number | null } }
+  program: LoyaltyProgram & { business: { name: string; latitude?: number | null; longitude?: number | null; proximityEnabled?: boolean | null } }
 ): Promise<string> {
   const auth = getGoogleAuth()
   const client = await auth.getClient()
@@ -69,11 +69,15 @@ export async function upsertLoyaltyClass(
     },
   }
 
-  // Geofencing: aparece en Google Wallet cuando el cliente está cerca
-  if (program.business.latitude != null && program.business.longitude != null) {
-    loyaltyClass.locations = [
-      { latitude: program.business.latitude, longitude: program.business.longitude },
-    ]
+  // Geofencing: aparece en Google Wallet cuando el cliente está cerca.
+  // Si proximityEnabled=false se omite el campo y Google elimina el geofencing de la clase.
+  if (program.business.proximityEnabled !== false
+      && program.business.latitude != null
+      && program.business.longitude != null) {
+    loyaltyClass.locations = [{
+      latitude:  program.business.latitude,
+      longitude: program.business.longitude,
+    }]
   }
 
   const lat = program.business.latitude ?? 'none'
