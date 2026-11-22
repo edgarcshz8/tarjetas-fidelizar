@@ -9,8 +9,8 @@ export const metadata: Metadata = {
   title: 'Tarjetas de Fidelización',
   description: 'Programa de fidelización con Apple Wallet y Google Wallet',
   icons: {
-    icon:  '/favicon.png',
-    apple: '/favicon.png',
+    icon:  '/favicon.webp',
+    apple: '/favicon.webp',
   },
 }
 
