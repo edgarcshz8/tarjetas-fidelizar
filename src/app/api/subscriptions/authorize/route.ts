@@ -43,6 +43,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const { planId, businessId, cardTokenId, payerEmail } = body
 
+  // In non-production, MP_TEST_PAYER_EMAIL overrides the business email so sandbox test-users work.
+  const mpTestPayerEmail = process.env.MP_TEST_PAYER_EMAIL
+  const effectivePayerEmail =
+    mpTestPayerEmail && process.env.NODE_ENV !== 'production' ? mpTestPayerEmail : payerEmail
+  if (mpTestPayerEmail && process.env.NODE_ENV !== 'production') {
+    console.log(
+      '[subscriptions:authorize] using MP_TEST_PAYER_EMAIL override email=%s',
+      maskEmail(mpTestPayerEmail),
+    )
+  }
+
   if (session.user.businessId !== businessId) {
     return NextResponse.json({ error: 'No autorizado.' }, { status: 403 })
   }
@@ -68,7 +79,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       mpSubscription = await preApprovalClient.create({
         body: {
           reason: `${plan.name} — MissStamps`,
-          payer_email: payerEmail,           // Rule 11: contact only, not persisted
+          payer_email: effectivePayerEmail,   // Rule 11: contact only, not persisted
           external_reference: businessId,
           card_token_id: cardTokenId,        // Rule 12: token used once; never stored
           back_url: backUrl,
