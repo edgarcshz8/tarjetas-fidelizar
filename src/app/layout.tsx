@@ -6,7 +6,7 @@ import Providers from '@/components/Providers'
 config.autoAddCss = false
 
 export const metadata: Metadata = {
-  title: 'Tarjetas de Fidelización',
+  title: 'MisStamps',
   description: 'Programa de fidelización con Apple Wallet y Google Wallet',
   icons: {
     icon:  '/favicon.webp',
