@@ -182,6 +182,9 @@ export default function CardPaymentBrick({
 
   return (
     <div>
+      <div className="mb-4 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+        Para validar tu tarjeta, Mercado Pago realizará un cargo mínimo que será devuelto automáticamente.
+      </div>
       {!brickReady && !errorMsg && (
         <p className="text-sm text-gray-400 animate-pulse mb-3">Cargando formulario de pago…</p>
       )}
