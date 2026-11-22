@@ -43,10 +43,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const { planId, businessId, cardTokenId, payerEmail } = body
 
-  // MP_TEST_PAYER_EMAIL overrides the business email when set (sandbox test-user support).
+  // In non-production, MP_TEST_PAYER_EMAIL overrides the business email so sandbox test-users work.
   const mpTestPayerEmail = process.env.MP_TEST_PAYER_EMAIL
-  const effectivePayerEmail = mpTestPayerEmail || payerEmail
-  if (mpTestPayerEmail) {
+  const effectivePayerEmail =
+    mpTestPayerEmail && process.env.NODE_ENV !== 'production' ? mpTestPayerEmail : payerEmail
+  if (mpTestPayerEmail && process.env.NODE_ENV !== 'production') {
     console.log(
       '[subscriptions:authorize] using MP_TEST_PAYER_EMAIL override email=%s',
       maskEmail(mpTestPayerEmail),
