@@ -56,16 +56,14 @@ export default function LoginForm() {
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-block bg-[#f3f4f6] rounded-2xl p-4 mb-4">
-            <Image
-              src="/logo-principal.webp"
-              alt="MisStamps"
-              width={1535}
-              height={607}
-              className="w-48 h-auto"
-              priority
-            />
-          </div>
+          <Image
+            src="/logo-principal-login.webp"
+            alt="MisStamps"
+            width={1536}
+            height={1024}
+            className="w-48 h-auto mx-auto mb-4"
+            priority
+          />
           <h1 className="text-2xl font-bold text-gray-900">Panel de Administración</h1>
         </div>
 
