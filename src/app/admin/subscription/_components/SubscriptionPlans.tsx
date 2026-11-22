@@ -4,7 +4,7 @@
 //   Rule 11: Minimum PII — no card data collected here; MP Brick tokenizes client-side
 //   Rule 12: No CVV, PAN, or track-data referenced
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import CardPaymentBrick from './CardPaymentBrick'
 
@@ -35,9 +35,10 @@ interface Props {
   userEmail: string
   activeSubscriptionStatus: 'PENDING' | 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELLED' | null
   hasActiveMpSubscription: boolean
+  returnFromMp: boolean
 }
 
-export default function SubscriptionPlans({ plans, businessId, userEmail, activeSubscriptionStatus, hasActiveMpSubscription }: Props) {
+export default function SubscriptionPlans({ plans, businessId, userEmail, activeSubscriptionStatus, hasActiveMpSubscription, returnFromMp }: Props) {
   const router = useRouter()
   const [flow, setFlow] = useState<FlowState>({ mode: 'idle' })
   const [mpPayerEmail, setMpPayerEmail] = useState(userEmail)
@@ -55,6 +56,11 @@ export default function SubscriptionPlans({ plans, businessId, userEmail, active
 
   const isRetry =
     activeSubscriptionStatus === 'TRIALING' || activeSubscriptionStatus === 'PENDING'
+
+  // Defined early so the useEffect below can reference it without hitting the TDZ
+  const showSyncButton =
+    hasActiveMpSubscription &&
+    (activeSubscriptionStatus === 'TRIALING' || activeSubscriptionStatus === 'PENDING')
 
   function choosePlan(plan: Plan) {
     setFlow({ mode: 'method-select', plan })
@@ -111,7 +117,7 @@ export default function SubscriptionPlans({ plans, businessId, userEmail, active
     router.refresh()
   }, [router])
 
-  async function handleSync() {
+  const handleSync = useCallback(async () => {
     setSyncing(true)
     setSyncMsg(null)
     try {
@@ -121,15 +127,27 @@ export default function SubscriptionPlans({ plans, businessId, userEmail, active
         setSyncMsg(data.error ?? 'No se pudo verificar el estado.')
       } else if (data.status === 'ACTIVE') {
         router.refresh()
+      } else if (data.status === 'CANCELLED') {
+        setSyncMsg('El pago fue rechazado. Puedes intentar con otro método de pago.')
+        setTimeout(() => router.refresh(), 1500)
       } else {
-        setSyncMsg(`Estado en Mercado Pago: ${data.status ?? 'desconocido'}. Intenta en unos minutos.`)
+        setSyncMsg('El pago aún está siendo procesado. Intenta en unos minutos.')
       }
     } catch {
       setSyncMsg('Error de red. Verifica tu conexión e intenta de nuevo.')
     } finally {
       setSyncing(false)
     }
-  }
+  }, [router])
+
+  // Auto-sync once when MP redirects back with preapproval_id in the URL
+  const autoSyncDone = useRef(false)
+  useEffect(() => {
+    if (returnFromMp && showSyncButton && !autoSyncDone.current) {
+      autoSyncDone.current = true
+      handleSync()
+    }
+  }, [returnFromMp, showSyncButton, handleSync])
 
   if (plans.length === 0) {
     return (
@@ -146,24 +164,47 @@ export default function SubscriptionPlans({ plans, businessId, userEmail, active
         ? flow.planId
         : null
 
-  const showSyncButton =
-    hasActiveMpSubscription &&
-    (activeSubscriptionStatus === 'TRIALING' || activeSubscriptionStatus === 'PENDING')
-
   return (
     <div>
-      {/* ── Sync / verify payment button ──────────────────────────────────── */}
+      {/* ── Sync / verify payment ─────────────────────────────────────────── */}
       {showSyncButton && (
         <div className="mb-6">
-          <button
-            onClick={handleSync}
-            disabled={syncing}
-            className="rounded-xl bg-yellow-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {syncing ? 'Verificando…' : '🔄 Verificar estado del pago'}
-          </button>
-          {syncMsg && (
-            <p className="mt-2 text-sm text-gray-600">{syncMsg}</p>
+          {returnFromMp ? (
+            /* Auto-sync mode: spinner while checking, error + retry if it fails */
+            syncing ? (
+              <div className="flex items-center gap-2 text-sm text-yellow-700">
+                <svg className="animate-spin h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+                Verificando tu pago…
+              </div>
+            ) : syncMsg ? (
+              <div>
+                <p className="text-sm text-red-600 mb-2">{syncMsg}</p>
+                <button
+                  onClick={handleSync}
+                  disabled={syncing}
+                  className="rounded-xl bg-yellow-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Reintentar verificación
+                </button>
+              </div>
+            ) : null
+          ) : (
+            /* Manual mode: keep the original button for users who navigate here directly */
+            <>
+              <button
+                onClick={handleSync}
+                disabled={syncing}
+                className="rounded-xl bg-yellow-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {syncing ? 'Verificando…' : '🔄 Verificar estado del pago'}
+              </button>
+              {syncMsg && (
+                <p className="mt-2 text-sm text-gray-600">{syncMsg}</p>
+              )}
+            </>
           )}
         </div>
       )}

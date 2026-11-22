@@ -19,7 +19,11 @@ function formatCLP(amount: number): string {
   }).format(amount)
 }
 
-export default async function SubscriptionPage() {
+export default async function SubscriptionPage({
+  searchParams,
+}: {
+  searchParams: { preapproval_id?: string }
+}) {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/admin/login')
 
@@ -110,6 +114,7 @@ export default async function SubscriptionPage() {
           userEmail={session.user.email ?? ''}
           activeSubscriptionStatus={currentSubscription?.status ?? null}
           hasActiveMpSubscription={!!currentSubscription?.mpSubscriptionId}
+          returnFromMp={!!searchParams?.preapproval_id}
         />
       </div>
     </main>
