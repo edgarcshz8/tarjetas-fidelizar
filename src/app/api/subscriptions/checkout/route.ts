@@ -71,7 +71,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     try {
       mpSubscription = await preApprovalClient.create({
         body: {
-          reason: `${plan.name} — MissStamps`,
+          reason: `${plan.name} MisStamps`,
           // Rule 11: email provided by the authenticated user for their MP account; not persisted
           payer_email: payerEmail,
           external_reference: businessId,

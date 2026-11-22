@@ -77,7 +77,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     try {
       mpSubscription = await preApprovalClient.create({
         body: {
-          reason: `${plan.name} — MissStamps`,
+          reason: `${plan.name} MisStamps`,
           payer_email: effectivePayerEmail,   // Rule 11: contact only, not persisted
           external_reference: businessId,
           card_token_id: cardTokenId,        // Rule 12: token used once; never stored
