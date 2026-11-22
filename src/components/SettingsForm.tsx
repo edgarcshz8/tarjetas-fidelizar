@@ -86,8 +86,7 @@ export default function SettingsForm({ business, program }: Props) {
   const [showMap,       setShowMap]       = useState(false)
   const [pushing,       setPushing]       = useState(false)
   const [pushResult,    setPushResult]    = useState<{ pushed: number; total: number } | null>(null)
-  const [syncing,       setSyncing]       = useState(false)
-  const [syncResult,    setSyncResult]    = useState<string | null>(null)
+
 
   const [section,       setSection]       = useState<FormSection>('programa')
   const [platform,      setPlatform]      = useState<PreviewPlatform>('apple')
@@ -581,45 +580,6 @@ export default function SettingsForm({ business, program }: Props) {
                     </button>
                   </div>
 
-                  {businessData.proximityEnabled && businessData.latitude != null && businessData.longitude != null && (
-                    <div className="pt-2 border-t border-gray-200">
-                      <p className="text-xs text-gray-500 mb-2">
-                        Sincroniza la ubicación con Google Wallet para los clientes que ya tienen la tarjeta guardada.
-                      </p>
-                      <button
-                        type="button"
-                        disabled={syncing}
-                        onClick={async () => {
-                          setSyncing(true)
-                          setSyncResult(null)
-                          try {
-                            const res = await fetch('/api/admin/geo-debug', { method: 'POST' })
-                            const data = await res.json()
-                            if (res.ok) {
-                              const programResult = Object.values(data.results ?? {})[0] as any
-                              const ok = programResult?.googleObjectsOk ?? 0
-                              const failed = programResult?.googleObjectsFailed ?? 0
-                              setSyncResult(`✓ Sincronizado${ok > 0 ? ` · ${ok} tarjeta(s) actualizada(s)` : ''}${failed > 0 ? ` · ${failed} error(es)` : ''}`)
-                            } else {
-                              setSyncResult('Error al sincronizar')
-                            }
-                          } catch {
-                            setSyncResult('Error de conexión')
-                          } finally {
-                            setSyncing(false)
-                          }
-                        }}
-                        className="px-4 py-2 bg-slate-800 text-white text-sm font-semibold rounded-lg hover:bg-slate-700 transition disabled:opacity-50"
-                      >
-                        {syncing ? 'Sincronizando…' : 'Sincronizar con Google Wallet'}
-                      </button>
-                      {syncResult && (
-                        <p className={`mt-2 text-xs font-medium ${syncResult.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>
-                          {syncResult}
-                        </p>
-                      )}
-                    </div>
-                  )}
                 </div>
 
                 {/* Push updates to existing passes */}
