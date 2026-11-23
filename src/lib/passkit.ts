@@ -315,6 +315,12 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
       value: `Acumula ${program.stampsRequired} sellos para obtener tu premio. No transferible.`,
     },
     {
+      key:            'whatsapp',
+      label:          'Contacto WhatsApp',
+      value:          'Escríbenos por WhatsApp',
+      attributedValue: '<a href="https://wa.me/56984393507?text=hola%20como%20estas">Escríbenos por WhatsApp</a>',
+    },
+    {
       key:   'location-tip',
       label: 'Notificaciones de proximidad',
       value: 'Para recibir un aviso cuando estés cerca: Ajustes → Privacidad y seguridad → Localización → Wallet → "Mientras uso la app".',
