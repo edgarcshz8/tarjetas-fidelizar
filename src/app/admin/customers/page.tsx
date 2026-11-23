@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { requireActiveSubscription } from '@/lib/subscriptionGuard'
 import PageSizeSelector from './PageSizeSelector'
 import RedeemButton from './RedeemButton'
+import ReferralQRButton from './ReferralQRButton'
 
 const ALLOWED_SIZES = [10, 25, 50, 100]
 const DEFAULT_SIZE  = 10
@@ -17,6 +18,14 @@ export default async function CustomersPage({
   const session = await getServerSession(authOptions)
   if (!session) redirect('/admin/login')
   await requireActiveSubscription(session.user.businessId)
+
+  const business = await prisma.business.findUnique({
+    where: { id: session.user.businessId },
+    select: { slug: true },
+  })
+
+  const rawAppUrl = process.env.APP_URL || 'http://localhost:3000'
+  const appUrl = /^https?:\/\//.test(rawAppUrl) ? rawAppUrl : `https://${rawAppUrl}`
 
   const search   = searchParams.search || ''
   const pageSize = ALLOWED_SIZES.includes(Number(searchParams.pageSize))
@@ -110,6 +119,7 @@ export default async function CustomersPage({
               <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Sellos</th>
               <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell">Premios</th>
               <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Estado</th>
+              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell">Referido</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -159,6 +169,17 @@ export default async function CustomersPage({
                     <span className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">
                       Activo
                     </span>
+                  )}
+                </td>
+                <td className="px-6 py-4 hidden md:table-cell">
+                  {pass.referralCode && business ? (
+                    <ReferralQRButton
+                      referralCode={pass.referralCode}
+                      registerUrl={`${appUrl}/${business.slug}?ref=${pass.referralCode}`}
+                      customerName={pass.customer.name}
+                    />
+                  ) : (
+                    <span className="text-gray-300 text-xs">—</span>
                   )}
                 </td>
               </tr>

@@ -52,8 +52,9 @@ model LoyaltyProgram {
   // Mensaje personalizado de cumpleaños (soporta {nombre}, {negocio}, {premio})
   birthdayTitle       String?
   birthdayMessage     String?
-  // Sistema de referidos: sellos bonus que ganan ambos al primer sello del referido (0 = desactivado)
-  referralBonusStamps Int      @default(0)
+  // Sistema de referidos (0 = desactivado)
+  referralBonusReferrer Int    @default(0)   // sellos que gana quien refiere
+  referralBonusReferred Int    @default(0)   // sellos que gana el referido
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 

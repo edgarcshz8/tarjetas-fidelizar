@@ -282,10 +282,10 @@ function buildLoyaltyObjectPayload(params: {
     },
   }
 
-  if (referralCode && businessSlug) {
+  if (referralCode) {
     payload.linksModuleData = {
       uris: [{
-        uri: `${appUrl}/${businessSlug}?ref=${referralCode}`,
+        uri: `${appUrl}/ref/${referralCode}`,
         description: 'Invita a tus amigos y gana sellos',
         id: 'referral',
       }],

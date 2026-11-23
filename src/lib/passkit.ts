@@ -314,17 +314,11 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
       label: 'Condiciones',
       value: `Acumula ${program.stampsRequired} sellos para obtener tu premio. No transferible.`,
     },
-    {
-      key:            'whatsapp',
-      label:          'Contacto WhatsApp',
-      value:          'Escríbenos por WhatsApp',
-      attributedValue: '<a href="https://wa.me/56984393507?text=hola%20como%20estas">Escríbenos por WhatsApp</a>',
-    },
     ...(passData.referralCode ? [{
       key:            'referral',
-      label:          'Invita a tus amigos',
-      value:          `${appUrl}/${program.business.slug}?ref=${passData.referralCode}`,
-      attributedValue: `<a href="${appUrl}/${program.business.slug}?ref=${passData.referralCode}">Compartir mi link de referido</a>`,
+      label:          'Invita a tus amigos y gana sellos',
+      value:          `${appUrl}/ref/${passData.referralCode}`,
+      attributedValue: `<a href="${appUrl}/ref/${passData.referralCode}">Ver mi link de referido</a>`,
     }] : []),
     {
       key:   'location-tip',

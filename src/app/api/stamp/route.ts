@@ -134,17 +134,18 @@ export async function POST(req: NextRequest) {
       where: { referredPassId: passRecord.id },
       include: { referrerPass: { include: { customer: true, program: true } } },
     })
-    const bonus = passRecord.program.referralBonusStamps ?? 0
-    if (referral && !referral.bonusGranted && bonus > 0) {
+    const bonusReferrer = passRecord.program.referralBonusReferrer ?? 0
+    const bonusReferred = passRecord.program.referralBonusReferred ?? 0
+    if (referral && !referral.bonusGranted && (bonusReferrer > 0 || bonusReferred > 0)) {
       await prisma.$transaction([
-        prisma.customerPass.update({
+        ...(bonusReferred > 0 ? [prisma.customerPass.update({
           where: { id: referral.referredPassId },
-          data:  { currentStamps: { increment: bonus }, applePassUpdatedAt: new Date() },
-        }),
-        prisma.customerPass.update({
+          data:  { currentStamps: { increment: bonusReferred }, applePassUpdatedAt: new Date() },
+        })] : []),
+        ...(bonusReferrer > 0 ? [prisma.customerPass.update({
           where: { id: referral.referrerPassId },
-          data:  { currentStamps: { increment: bonus }, applePassUpdatedAt: new Date() },
-        }),
+          data:  { currentStamps: { increment: bonusReferrer }, applePassUpdatedAt: new Date() },
+        })] : []),
         prisma.referral.update({
           where: { id: referral.id },
           data:  { bonusGranted: true },
