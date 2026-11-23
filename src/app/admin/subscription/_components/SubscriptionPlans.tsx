@@ -240,7 +240,7 @@ export default function SubscriptionPlans({ plans, businessId, userEmail, active
       </div>
 
       {/* ── Plan grid ─────────────────────────────────────────────────────── */}
-      <div className="grid gap-6 sm:grid-cols-2 max-w-2xl mx-auto w-full">
+      <div className={`grid gap-6 mx-auto w-full ${visiblePlans.length === 1 ? 'max-w-sm' : 'sm:grid-cols-2 max-w-2xl'}`}>
         {visiblePlans.map((plan) => {
           const isSelected = activePlanId === plan.id
           return (
