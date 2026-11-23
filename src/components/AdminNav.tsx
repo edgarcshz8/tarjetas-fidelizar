@@ -1,5 +1,6 @@
 'use client'
 
+import { useRef, useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
@@ -29,6 +30,18 @@ const navItems = [
 
 export default function AdminNav({ session }: { session: Session }) {
   const pathname = usePathname()
+  const [profileOpen, setProfileOpen] = useState(false)
+  const profileRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   return (
     <header className="bg-slate-900 text-white shadow-lg">
@@ -64,9 +77,36 @@ export default function AdminNav({ session }: { session: Session }) {
           </div>
 
           <div className="flex items-center gap-4">
-            <span className="text-sm text-slate-400 hidden md:block">
-              {session.user.businessName}
-            </span>
+            {/* Profile dropdown */}
+            <div className="relative hidden md:block" ref={profileRef}>
+              <button
+                onClick={() => setProfileOpen(o => !o)}
+                className="flex items-center gap-1 text-sm text-slate-400 hover:text-white transition"
+              >
+                {session.user.businessName}
+                <svg
+                  className={`w-3 h-3 transition-transform ${profileOpen ? 'rotate-180' : ''}`}
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {profileOpen && (
+                <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
+                  <Link
+                    href="/admin/profile"
+                    onClick={() => setProfileOpen(false)}
+                    className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    Cambiar contraseña
+                  </Link>
+                </div>
+              )}
+            </div>
+
             <button
               onClick={() => signOut({ callbackUrl: '/admin/login' })}
               className="text-sm text-slate-300 hover:text-white transition"

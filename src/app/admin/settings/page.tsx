@@ -4,7 +4,6 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { requireActiveSubscription } from '@/lib/subscriptionGuard'
 import SettingsForm from '@/components/SettingsForm'
-import PasswordChangeCard from '@/components/PasswordChangeCard'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,7 +27,6 @@ export default async function SettingsPage() {
       </div>
 
       <SettingsForm business={business} program={program} />
-      <PasswordChangeCard />
     </div>
   )
 }
