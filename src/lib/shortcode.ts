@@ -4,9 +4,9 @@ import { prisma } from '@/lib/prisma'
 const CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 const CODE_LENGTH = 10
 
-function randomCode(): string {
+function randomCode(length = CODE_LENGTH): string {
   let code = ''
-  for (let i = 0; i < CODE_LENGTH; i++) {
+  for (let i = 0; i < length; i++) {
     code += CHARS[Math.floor(Math.random() * CHARS.length)]
   }
   return code
@@ -19,4 +19,13 @@ export async function generateUniquePassCode(): Promise<string> {
     if (!existing) return code
   }
   throw new Error('No se pudo generar un código único para el pase')
+}
+
+export async function generateUniqueReferralCode(): Promise<string> {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const code = randomCode(6)
+    const existing = await prisma.customerPass.findUnique({ where: { referralCode: code } })
+    if (!existing) return code
+  }
+  throw new Error('No se pudo generar un código de referido único')
 }

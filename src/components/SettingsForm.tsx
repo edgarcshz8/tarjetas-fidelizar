@@ -34,6 +34,7 @@ interface ProgramState {
   labelColor: string
   birthdayTitle: string
   birthdayMessage: string
+  referralBonusStamps: number
 }
 
 type FormSection = 'programa' | 'diseno' | 'negocio'
@@ -69,8 +70,9 @@ export default function SettingsForm({ business, program }: Props) {
     backgroundColor:  program?.backgroundColor  ?? '#1a1a2e',
     foregroundColor:  program?.foregroundColor  ?? '#ffffff',
     labelColor:       program?.labelColor       ?? '#aaaacc',
-    birthdayTitle:    program?.birthdayTitle    ?? '',
-    birthdayMessage:  program?.birthdayMessage  ?? '',
+    birthdayTitle:       program?.birthdayTitle         ?? '',
+    birthdayMessage:     program?.birthdayMessage       ?? '',
+    referralBonusStamps: program?.referralBonusStamps   ?? 0,
   })
 
   const [businessData, setBusinessData] = useState({
@@ -322,6 +324,32 @@ export default function SettingsForm({ business, program }: Props) {
                       .replace(/{premio}/g, p.rewardDescription || 'tu premio')}
                   </p>
                 </div>
+              </div>
+
+              {/* ── Sistema de referidos ── */}
+              <div className="border-t border-gray-100 pt-5 space-y-3">
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Sistema de referidos</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Cuando un cliente comparte su link y el referido recibe su primer sello, ambos ganan los sellos bonus configurados aquí. Pon 0 para desactivar.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    min={0}
+                    max={20}
+                    value={p.referralBonusStamps}
+                    onChange={e => setProgramData(d => ({ ...d, referralBonusStamps: Math.max(0, Math.min(20, +e.target.value || 0)) }))}
+                    className="w-24 px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm"
+                  />
+                  <span className="text-sm text-gray-500">sellos bonus para cada uno</span>
+                </div>
+                {p.referralBonusStamps > 0 && (
+                  <p className="text-xs text-green-600">
+                    Activo: referidor y referido ganarán {p.referralBonusStamps} sello(s) extra cuando el referido obtenga su primer sello.
+                  </p>
+                )}
               </div>
             </div>
           )}

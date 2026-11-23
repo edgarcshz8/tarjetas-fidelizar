@@ -127,6 +127,46 @@ export async function POST(req: NextRequest) {
     data: { passId: passRecord.id, addedById: user.id },
   })
 
+  // ─── Referral bonus: se activa una sola vez en el primer sello del referido ──
+  const stampCount = await prisma.stamp.count({ where: { passId: passRecord.id } })
+  if (stampCount === 1) {
+    const referral = await prisma.referral.findUnique({
+      where: { referredPassId: passRecord.id },
+      include: { referrerPass: { include: { customer: true, program: true } } },
+    })
+    const bonus = passRecord.program.referralBonusStamps ?? 0
+    if (referral && !referral.bonusGranted && bonus > 0) {
+      await prisma.$transaction([
+        prisma.customerPass.update({
+          where: { id: referral.referredPassId },
+          data:  { currentStamps: { increment: bonus }, applePassUpdatedAt: new Date() },
+        }),
+        prisma.customerPass.update({
+          where: { id: referral.referrerPassId },
+          data:  { currentStamps: { increment: bonus }, applePassUpdatedAt: new Date() },
+        }),
+        prisma.referral.update({
+          where: { id: referral.id },
+          data:  { bonusGranted: true },
+        }),
+      ])
+      pushPassUpdate(referral.referrerPass.serialNumber).catch(err =>
+        console.error('[stamp] referral bonus APNS push (referrer):', err)
+      )
+      if (referral.referrerPass.googleObjectId) {
+        const updatedReferrer = await prisma.customerPass.findUnique({
+          where:   { id: referral.referrerPassId },
+          include: { customer: true, program: { include: { business: true } } },
+        })
+        if (updatedReferrer) {
+          updateLoyaltyObject(updatedReferrer as any).catch(err =>
+            console.error('[stamp] referral bonus Google push (referrer):', err)
+          )
+        }
+      }
+    }
+  }
+
   if (updatedPass.googleObjectId) {
     updateLoyaltyObject(updatedPass as any)
       .then(() =>

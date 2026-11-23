@@ -320,6 +320,12 @@ export async function generateApplePass(passData: PassData): Promise<Buffer> {
       value:          'Escríbenos por WhatsApp',
       attributedValue: '<a href="https://wa.me/56984393507?text=hola%20como%20estas">Escríbenos por WhatsApp</a>',
     },
+    ...(passData.referralCode ? [{
+      key:            'referral',
+      label:          'Invita a tus amigos',
+      value:          `${appUrl}/${program.business.slug}?ref=${passData.referralCode}`,
+      attributedValue: `<a href="${appUrl}/${program.business.slug}?ref=${passData.referralCode}">Compartir mi link de referido</a>`,
+    }] : []),
     {
       key:   'location-tip',
       label: 'Notificaciones de proximidad',

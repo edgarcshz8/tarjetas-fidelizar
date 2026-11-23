@@ -34,8 +34,9 @@ const updateSchema = z.object({
   backgroundColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   foregroundColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   labelColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-  birthdayTitle:   z.string().max(60).optional().nullable(),
-  birthdayMessage: z.string().max(200).optional().nullable(),
+  birthdayTitle:        z.string().max(60).optional().nullable(),
+  birthdayMessage:      z.string().max(200).optional().nullable(),
+  referralBonusStamps:  z.number().int().min(0).max(20).optional(),
 })
 
 // POST → crear o actualizar programa

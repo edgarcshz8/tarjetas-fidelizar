@@ -152,6 +152,8 @@ export async function createLoyaltyObject(passData: GooglePassData): Promise<str
     rewardDescription: program.rewardDescription,
     stampEmoji: program.stampEmoji ?? '⭐',
     rewardReady,
+    referralCode: passData.referralCode ?? undefined,
+    businessSlug: program.business.slug,
   })
 
   try {
@@ -192,12 +194,15 @@ export async function updateLoyaltyObject(passData: GooglePassData): Promise<voi
     rewardDescription: program.rewardDescription,
     stampEmoji: program.stampEmoji ?? '⭐',
     rewardReady,
+    referralCode: passData.referralCode ?? undefined,
+    businessSlug: program.business.slug,
   })
 
   const patchData: Record<string, any> = {
     loyaltyPoints:   payload.loyaltyPoints,
     textModulesData: payload.textModulesData,
     heroImage:       payload.heroImage,
+    ...(payload.linksModuleData ? { linksModuleData: payload.linksModuleData } : {}),
   }
 
   // El geofencing se gestiona a nivel de clase (merchantLocations en upsertLoyaltyClass).
@@ -226,8 +231,10 @@ function buildLoyaltyObjectPayload(params: {
   rewardDescription: string
   stampEmoji?: string
   rewardReady: boolean
+  referralCode?: string
+  businessSlug?: string
 }) {
-  const { objectId, classId, serialNumber, customer, currentStamps, stampsRequired, rewardDescription, stampEmoji = '⭐', rewardReady } = params
+  const { objectId, classId, serialNumber, customer, currentStamps, stampsRequired, rewardDescription, stampEmoji = '⭐', rewardReady, referralCode, businessSlug } = params
 
   const rawAppUrl = process.env.APP_URL || 'http://localhost:3000'
   const appUrl    = /^https?:\/\//.test(rawAppUrl) ? rawAppUrl : `https://${rawAppUrl}`
@@ -236,7 +243,7 @@ function buildLoyaltyObjectPayload(params: {
   // ?v= busts the Google CDN cache each time the stamp count changes.
   const heroImageUri = `${appUrl}/api/passes/google/strip/${serialNumber}?v=${currentStamps}`
 
-  return {
+  const payload: Record<string, any> = {
     id: objectId,
     classId,
     state: 'ACTIVE',
@@ -274,6 +281,18 @@ function buildLoyaltyObjectPayload(params: {
       alternateText: objectId.split('.pass_')[1] || objectId,
     },
   }
+
+  if (referralCode && businessSlug) {
+    payload.linksModuleData = {
+      uris: [{
+        uri: `${appUrl}/${businessSlug}?ref=${referralCode}`,
+        description: 'Invita a tus amigos y gana sellos',
+        id: 'referral',
+      }],
+    }
+  }
+
+  return payload
 }
 
 /** PATCH a single loyalty object with updated coordinates. Used when the business saves new location. */

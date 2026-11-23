@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { upsertLoyaltyClass, createLoyaltyObject, buildObjectId, getSaveToWalletUrl } from '@/lib/google-wallet'
-import { generateUniquePassCode } from '@/lib/shortcode'
+import { generateUniquePassCode, generateUniqueReferralCode } from '@/lib/shortcode'
 
 export const runtime = 'nodejs'
 
@@ -12,6 +12,7 @@ const schema = z.object({
   email: z.string().email(),
   phone: z.string().optional(),
   birthDate: z.string().optional(),
+  referralCode: z.string().length(6).optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -68,15 +69,31 @@ export async function POST(req: NextRequest) {
     // ─── Crear pase si no existe ────────────────────────────────────────────
     if (!passRecord) {
       const serialNumber = await generateUniquePassCode()
+      const refCode      = await generateUniqueReferralCode()
       passRecord = await prisma.customerPass.create({
         data: {
           serialNumber,
-          customerId: customer.id,
-          programId: program.id,
+          customerId:  customer.id,
+          programId:   program.id,
           currentStamps: 0,
+          referralCode: refCode,
         },
         include: { customer: true, program: { include: { business: true } } },
       })
+
+      // Registrar relación de referido si se pasó un código válido
+      if (data.referralCode) {
+        const referrerPass = await prisma.customerPass.findFirst({
+          where: { referralCode: data.referralCode, programId: program.id },
+        })
+        if (referrerPass && referrerPass.customerId !== customer.id) {
+          await prisma.referral.upsert({
+            where:  { referredPassId: passRecord.id },
+            create: { referrerPassId: referrerPass.id, referredPassId: passRecord.id },
+            update: {},
+          })
+        }
+      }
     }
 
     // ─── Crear/recuperar Google Wallet object (nuevo pase o pase sin googleObjectId) ─
@@ -125,6 +142,9 @@ export async function POST(req: NextRequest) {
       stampsRequired: program.stampsRequired,
       rewardDescription: program.rewardDescription,
       stampEmoji: program.stampEmoji ?? '⭐',
+      referralLink: passRecord.referralCode
+        ? `${appUrl}/${business.slug}?ref=${passRecord.referralCode}`
+        : null,
     })
   } catch (err) {
     if (err instanceof z.ZodError) {

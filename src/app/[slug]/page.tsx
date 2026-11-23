@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 
 type Step = 'form' | 'download' | 'error'
 
@@ -13,11 +13,14 @@ interface DownloadData {
   stampsRequired: number
   rewardDescription: string
   stampEmoji: string
+  referralLink: string | null
 }
 
 export default function RegisterPage() {
   const params = useParams()
+  const searchParams = useSearchParams()
   const slug = params.slug as string
+  const refParam = searchParams.get('ref') ?? ''
 
   const [step, setStep] = useState<Step>('form')
   const [loading, setLoading] = useState(false)
@@ -39,7 +42,7 @@ export default function RegisterPage() {
       const res = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, slug }),
+        body: JSON.stringify({ ...form, slug, ...(refParam ? { referralCode: refParam } : {}) }),
       })
 
       const data = await res.json()
@@ -298,6 +301,15 @@ function StampGrid({ current, total, emoji }: { current: number; total: number; 
 // ─── Pantalla de descarga ─────────────────────────────────────────────────────
 function DownloadStep({ data }: { data: DownloadData }) {
   const firstName = data.customerName.split(' ')[0]
+  const [copied, setCopied] = useState(false)
+
+  function handleCopy() {
+    if (!data.referralLink) return
+    navigator.clipboard.writeText(data.referralLink).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-4">
@@ -376,6 +388,25 @@ function DownloadStep({ data }: { data: DownloadData }) {
             Guardar en Google Wallet
           </a>
         </div>
+
+        {/* Link de referido */}
+        {data.referralLink && (
+          <div className="bg-white/10 border border-white/20 rounded-2xl p-5 text-center">
+            <p className="text-white font-semibold text-sm mb-1">¡Invita a tus amigos y gana sellos!</p>
+            <p className="text-white/60 text-xs mb-3">
+              Cuando un amigo se registre con tu link y reciba su primer sello, ambos ganan sellos bonus.
+            </p>
+            <p className="text-white/80 text-xs font-mono break-all mb-3 bg-white/10 rounded-xl px-3 py-2">
+              {data.referralLink}
+            </p>
+            <button
+              onClick={handleCopy}
+              className="w-full py-2.5 bg-white text-slate-900 font-semibold text-sm rounded-xl hover:bg-gray-100 transition"
+            >
+              {copied ? '¡Copiado!' : 'Copiar link de referido'}
+            </button>
+          </div>
+        )}
 
       </div>
     </div>

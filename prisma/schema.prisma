@@ -45,15 +45,17 @@ model LoyaltyProgram {
   backgroundColor   String   @default("#1a1a2e")
   foregroundColor   String   @default("#ffffff")
   labelColor        String   @default("#cccccc")
-  stampEmoji        String?  @default("⭐")
-  isActive          Boolean  @default(true)
+  stampEmoji          String?  @default("⭐")
+  isActive            Boolean  @default(true)
   // Google Wallet: ID de la clase (loyaltyClass) creada en Google
-  googleClassId     String?
+  googleClassId       String?
   // Mensaje personalizado de cumpleaños (soporta {nombre}, {negocio}, {premio})
-  birthdayTitle     String?
-  birthdayMessage   String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  birthdayTitle       String?
+  birthdayMessage     String?
+  // Sistema de referidos: sellos bonus que ganan ambos al primer sello del referido (0 = desactivado)
+  referralBonusStamps Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   business Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
   passes   CustomerPass[]
@@ -91,13 +93,17 @@ model CustomerPass {
   birthdayNotifiedOn String?
   // Google Wallet: ID del objeto loyaltyObject
   googleObjectId     String?
+  // Sistema de referidos: código corto único para compartir link de referido
+  referralCode       String?  @unique
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  customer Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  program  LoyaltyProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
-  stamps   Stamp[]
-  devices  AppleDevice[]
+  customer         Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  program          LoyaltyProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  stamps           Stamp[]
+  devices          AppleDevice[]
+  referralsGiven   Referral[] @relation("ReferrerReferrals")
+  referralReceived Referral?  @relation("ReferredReferrals")
 
   @@map("customer_passes")
 }
@@ -143,6 +149,23 @@ model User {
   stamps   Stamp[]
 
   @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────────
+// REFERRALS
+// ─────────────────────────────────────────────────────────────
+
+model Referral {
+  id             String   @id @default(cuid())
+  referrerPassId String
+  referredPassId String   @unique
+  bonusGranted   Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  referrerPass CustomerPass @relation("ReferrerReferrals", fields: [referrerPassId], references: [id], onDelete: Cascade)
+  referredPass CustomerPass @relation("ReferredReferrals", fields: [referredPassId], references: [id], onDelete: Cascade)
+
+  @@map("referrals")
 }
 
 // ─────────────────────────────────────────────────────────────
