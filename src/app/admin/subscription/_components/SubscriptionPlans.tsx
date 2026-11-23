@@ -326,6 +326,7 @@ export default function SubscriptionPlans({ plans, businessId, userEmail, active
                     onClick={() => chooseMethod('mp_account')}
                     className="flex-1 rounded-xl border-2 border-gray-200 bg-white px-4 py-4 text-left hover:border-blue-400 hover:bg-blue-50 transition-colors"
                   >
+                    <p className="font-semibold text-gray-900 text-sm mb-2">Mercado Pago</p>
                     <Image
                       src="/logo-mercado-pago.webp"
                       alt="Mercado Pago"
