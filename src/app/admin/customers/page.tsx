@@ -119,7 +119,7 @@ export default async function CustomersPage({
               <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Sellos</th>
               <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell">Premios</th>
               <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Estado</th>
-              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell whitespace-nowrap">QR Ref.</th>
+              <th className="text-left px-6 py-3 pr-8 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell whitespace-nowrap">QR Ref.</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -171,7 +171,7 @@ export default async function CustomersPage({
                     </span>
                   )}
                 </td>
-                <td className="px-6 py-4 hidden md:table-cell">
+                <td className="px-6 py-4 pr-8 hidden md:table-cell">
                   {pass.referralCode && business ? (
                     <ReferralQRButton
                       referralCode={pass.referralCode}
