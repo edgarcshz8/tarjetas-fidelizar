@@ -335,7 +335,7 @@ export default function SubscriptionPlans({ plans, businessId, userEmail, active
                       className="h-9 w-auto"
                     />
                     <p className="text-xs text-gray-500 mt-2">
-                      Inicia sesión en Mercado Pago para suscribirte.
+                      Ingresa en Mercado Pago para suscribirte.
                     </p>
                   </button>
                 </div>
