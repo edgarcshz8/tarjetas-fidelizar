@@ -181,8 +181,7 @@ export default function SubscriptionPlans({ plans, businessId, userEmail, active
       {/* ── Sync / verify payment ─────────────────────────────────────────── */}
       {showSyncButton && (
         <div className="mb-6">
-          {returnFromMp ? (
-            /* Auto-sync mode: spinner while checking, error + retry if it fails */
+          {returnFromMp && (
             syncing ? (
               <div className="flex items-center gap-2 text-sm text-yellow-700">
                 <svg className="animate-spin h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none">
@@ -203,20 +202,6 @@ export default function SubscriptionPlans({ plans, businessId, userEmail, active
                 </button>
               </div>
             ) : null
-          ) : (
-            /* Manual mode: keep the original button for users who navigate here directly */
-            <>
-              <button
-                onClick={handleSync}
-                disabled={syncing}
-                className="rounded-xl bg-yellow-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {syncing ? 'Verificando…' : '🔄 Verificar estado del pago'}
-              </button>
-              {syncMsg && (
-                <p className="mt-2 text-sm text-gray-600">{syncMsg}</p>
-              )}
-            </>
           )}
         </div>
       )}
