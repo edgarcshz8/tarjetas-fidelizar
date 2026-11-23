@@ -39,8 +39,17 @@ interface Props {
   returnFromMp: boolean
 }
 
+function formatCLPMini(amount: number): string {
+  return new Intl.NumberFormat('es-CL', {
+    style: 'currency',
+    currency: 'CLP',
+    minimumFractionDigits: 0,
+  }).format(amount)
+}
+
 export default function SubscriptionPlans({ plans, businessId, userEmail, activeSubscriptionStatus, hasActiveMpSubscription, returnFromMp }: Props) {
   const router = useRouter()
+  const [billing, setBilling] = useState<'MONTHLY' | 'ANNUAL'>('MONTHLY')
   const [flow, setFlow] = useState<FlowState>({ mode: 'idle' })
   const [mpPayerEmail, setMpPayerEmail] = useState(userEmail)
   const [emailError, setEmailError] = useState<string | null>(null)
@@ -150,6 +159,8 @@ export default function SubscriptionPlans({ plans, businessId, userEmail, active
     }
   }, [returnFromMp, showSyncButton, handleSync])
 
+  const visiblePlans = plans.filter(p => p.interval === billing)
+
   if (plans.length === 0) {
     return (
       <p className="text-gray-400 text-center py-16">
@@ -210,9 +221,42 @@ export default function SubscriptionPlans({ plans, businessId, userEmail, active
         </div>
       )}
 
+      {/* ── Billing toggle ────────────────────────────────────────────────── */}
+      <div className="mb-6 flex justify-center">
+        <div className="flex gap-1 p-1 bg-gray-100 rounded-xl">
+          <button
+            onClick={() => { setBilling('MONTHLY'); setFlow({ mode: 'idle' }) }}
+            className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
+              billing === 'MONTHLY'
+                ? 'bg-slate-900 text-white shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Mensual
+          </button>
+          <button
+            onClick={() => { setBilling('ANNUAL'); setFlow({ mode: 'idle' }) }}
+            className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
+              billing === 'ANNUAL'
+                ? 'bg-slate-900 text-white shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Anual
+            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+              billing === 'ANNUAL'
+                ? 'bg-green-400 text-green-900'
+                : 'bg-green-100 text-green-700'
+            }`}>
+              2 meses gratis
+            </span>
+          </button>
+        </div>
+      </div>
+
       {/* ── Plan grid ─────────────────────────────────────────────────────── */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {plans.map((plan) => {
+        {visiblePlans.map((plan) => {
           const isSelected = activePlanId === plan.id
           return (
             <div
@@ -235,6 +279,11 @@ export default function SubscriptionPlans({ plans, businessId, userEmail, active
                 <span className="ml-1 text-sm text-gray-500">
                   /{plan.interval === 'MONTHLY' ? 'mes' : 'año'}
                 </span>
+                {plan.interval === 'ANNUAL' && (
+                  <p className="mt-1 text-sm text-green-600 font-medium">
+                    ≈ {formatCLPMini(Math.round(plan.price / 12))}/mes
+                  </p>
+                )}
               </div>
 
               {plan.features.length > 0 && (
