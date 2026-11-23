@@ -7,6 +7,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import SubscriptionPlans from './_components/SubscriptionPlans'
+import CancelSubscriptionButton from './_components/CancelSubscriptionButton'
 
 export const metadata = { title: 'Suscripción — Tarjetas Fidelizar' }
 
@@ -96,6 +97,10 @@ export default async function SubscriptionPage({
                 Próximo cobro:{' '}
                 {new Date(currentSubscription.currentPeriodEnd).toLocaleDateString('es-CL')}
               </p>
+            )}
+            {(currentSubscription.status === 'ACTIVE' ||
+              currentSubscription.status === 'PAST_DUE') && (
+              <CancelSubscriptionButton />
             )}
           </div>
         )}
