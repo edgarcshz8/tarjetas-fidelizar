@@ -11,6 +11,15 @@ import CardPaymentBrick from './CardPaymentBrick'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+const BASIC_FEATURES = [
+  'Tarjeta de fidelización en Apple Wallet y Google Wallet',
+  'Escáner QR para agregar sellos',
+  'Clientes ilimitados',
+  'Dashboard y estadísticas',
+  'Personalización de colores, emoji y diseño',
+  'Soporte por email',
+]
+
 interface Plan {
   id: string
   name: string
@@ -240,7 +249,7 @@ export default function SubscriptionPlans({ plans, businessId, userEmail, active
       </div>
 
       {/* ── Plan grid ─────────────────────────────────────────────────────── */}
-      <div className={`grid gap-6 mx-auto w-full ${visiblePlans.length === 1 ? 'max-w-sm' : 'sm:grid-cols-2 max-w-2xl'}`}>
+      <div className={`grid gap-6 mx-auto w-full ${visiblePlans.length === 1 ? 'max-w-md' : 'sm:grid-cols-2 max-w-2xl'}`}>
         {visiblePlans.map((plan) => {
           const isSelected = activePlanId === plan.id
           return (
@@ -271,16 +280,45 @@ export default function SubscriptionPlans({ plans, businessId, userEmail, active
                 )}
               </div>
 
-              {plan.features.length > 0 && (
-                <ul className="mb-6 space-y-2 flex-1">
-                  {plan.features.map((feature, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
-                      <span className="mt-0.5 text-green-500 font-bold" aria-hidden>&#10003;</span>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-              )}
+              {plan.features.length > 0 && (() => {
+                const hasTodoBasico = plan.features[0] === 'Todo lo del plan Básico'
+                const proOnlyFeatures = hasTodoBasico ? plan.features.slice(1) : plan.features
+                return hasTodoBasico ? (
+                  <div className="mb-6 flex-1 space-y-4">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Plan Básico incluye</p>
+                      <ul className="space-y-1.5">
+                        {BASIC_FEATURES.map((f, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-gray-500">
+                            <span className="mt-0.5 text-gray-400 font-bold shrink-0" aria-hidden>&#10003;</span>
+                            {f}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className="border-t border-gray-100 pt-3">
+                      <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-2">Funciones Pro</p>
+                      <ul className="space-y-1.5">
+                        {proOnlyFeatures.map((f, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-gray-700 font-medium">
+                            <span className="mt-0.5 text-green-500 font-bold shrink-0" aria-hidden>&#10003;</span>
+                            {f}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                ) : (
+                  <ul className="mb-6 space-y-2 flex-1">
+                    {plan.features.map((feature, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
+                        <span className="mt-0.5 text-green-500 font-bold" aria-hidden>&#10003;</span>
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                )
+              })()}
 
               <button
                 onClick={() => choosePlan(plan)}
