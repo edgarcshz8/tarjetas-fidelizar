@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { upsertLoyaltyClass, patchGoogleObjectLocation } from '@/lib/google-wallet'
+import { checkActiveSubscriptionWithTier } from '@/lib/subscriptionGuard'
 
 export const runtime = 'nodejs'
 
@@ -41,8 +42,20 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Sin permisos' }, { status: 403 })
   }
 
+  const subCheck = await checkActiveSubscriptionWithTier(session.user.businessId)
+  if (!subCheck.allowed) return NextResponse.json({ error: subCheck.error }, { status: subCheck.status })
+
   const body = await req.json()
   const data = updateSchema.parse(body)
+
+  // Strip geofencing fields for BASIC plan — silent, UI already hides them
+  if (subCheck.tier === 'BASIC') {
+    data.latitude = undefined
+    data.longitude = undefined
+    data.locationName = undefined
+    data.address = undefined
+    data.proximityEnabled = undefined
+  }
 
   const business = await prisma.business.update({
     where: { id: session.user.businessId },

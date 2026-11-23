@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { requireActiveSubscription } from '@/lib/subscriptionGuard'
+import { requireActiveSubscriptionWithTier } from '@/lib/subscriptionGuard'
 import PageSizeSelector from './PageSizeSelector'
 import RedeemButton from './RedeemButton'
 import ReferralQRButton from './ReferralQRButton'
@@ -17,7 +17,7 @@ export default async function CustomersPage({
 }) {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/admin/login')
-  await requireActiveSubscription(session.user.businessId)
+  const planTier = await requireActiveSubscriptionWithTier(session.user.businessId)
 
   const business = await prisma.business.findUnique({
     where: { id: session.user.businessId },
@@ -119,7 +119,7 @@ export default async function CustomersPage({
               <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Sellos</th>
               <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell">Premios</th>
               <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Estado</th>
-              <th className="text-left px-6 py-3 pr-8 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell whitespace-nowrap">QR Ref.</th>
+              {planTier === 'PRO' && <th className="text-left px-6 py-3 pr-8 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell whitespace-nowrap">QR Ref.</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -171,17 +171,19 @@ export default async function CustomersPage({
                     </span>
                   )}
                 </td>
-                <td className="px-6 py-4 pr-8 hidden md:table-cell">
-                  {pass.referralCode && business ? (
-                    <ReferralQRButton
-                      referralCode={pass.referralCode}
-                      registerUrl={`${appUrl}/${business.slug}?ref=${pass.referralCode}`}
-                      customerName={pass.customer.name}
-                    />
-                  ) : (
-                    <span className="text-gray-300 text-xs">—</span>
-                  )}
-                </td>
+                {planTier === 'PRO' && (
+                  <td className="px-6 py-4 pr-8 hidden md:table-cell">
+                    {pass.referralCode && business ? (
+                      <ReferralQRButton
+                        referralCode={pass.referralCode}
+                        registerUrl={`${appUrl}/${business.slug}?ref=${pass.referralCode}`}
+                        customerName={pass.customer.name}
+                      />
+                    ) : (
+                      <span className="text-gray-300 text-xs">—</span>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

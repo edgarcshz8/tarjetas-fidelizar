@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { requireActiveSubscription } from '@/lib/subscriptionGuard'
+import { requireActiveSubscriptionWithTier } from '@/lib/subscriptionGuard'
 import SettingsForm from '@/components/SettingsForm'
 
 export const dynamic = 'force-dynamic'
@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
 export default async function SettingsPage() {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/admin/login')
-  await requireActiveSubscription(session.user.businessId)
+  const planTier = await requireActiveSubscriptionWithTier(session.user.businessId)
 
   const [business, program] = await Promise.all([
     prisma.business.findUnique({ where: { id: session.user.businessId } }),
@@ -26,7 +26,7 @@ export default async function SettingsPage() {
         <p className="text-gray-500">Personaliza tu programa de fidelización</p>
       </div>
 
-      <SettingsForm business={business} program={program} />
+      <SettingsForm business={business} program={program} planTier={planTier} />
     </div>
   )
 }

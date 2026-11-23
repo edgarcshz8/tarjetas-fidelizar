@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { upsertLoyaltyClass, updateLoyaltyObject, pushGoogleWalletMessage } from '@/lib/google-wallet'
 import { pushPassUpdate } from '@/lib/apns'
+import { checkActiveSubscriptionWithTier } from '@/lib/subscriptionGuard'
 
 export const runtime = 'nodejs'
 
@@ -45,8 +46,19 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
+  const subCheck = await checkActiveSubscriptionWithTier(session.user.businessId)
+  if (!subCheck.allowed) return NextResponse.json({ error: subCheck.error }, { status: subCheck.status })
+
   const body = await req.json()
   const data = updateSchema.parse(body)
+
+  // Strip Pro-only fields for BASIC plan — silent, UI already hides them
+  if (subCheck.tier === 'BASIC') {
+    data.birthdayTitle = undefined
+    data.birthdayMessage = undefined
+    data.referralBonusReferrer = undefined
+    data.referralBonusReferred = undefined
+  }
 
   if (data.id) {
     // Actualizar programa existente

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { checkActiveSubscription } from '@/lib/subscriptionGuard'
+import { checkActiveSubscriptionWithTier } from '@/lib/subscriptionGuard'
 import { updateLoyaltyObject, pushGoogleWalletMessage } from '@/lib/google-wallet'
 import { pushPassUpdate } from '@/lib/apns'
 
@@ -18,10 +18,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 
-  const subCheck = await checkActiveSubscription(session.user.businessId)
+  const subCheck = await checkActiveSubscriptionWithTier(session.user.businessId)
   if (!subCheck.allowed) {
     return NextResponse.json({ error: subCheck.error }, { status: subCheck.status })
   }
+  const planTier = subCheck.tier
 
   const body = await req.json()
   const { serialNumber, email } = body as { serialNumber?: string; email?: string }
@@ -129,7 +130,7 @@ export async function POST(req: NextRequest) {
 
   // ─── Referral bonus: se activa una sola vez en el primer sello del referido ──
   const stampCount = await prisma.stamp.count({ where: { passId: passRecord.id } })
-  if (stampCount === 1) {
+  if (stampCount === 1 && planTier === 'PRO') {
     const referral = await prisma.referral.findUnique({
       where: { referredPassId: passRecord.id },
       include: { referrerPass: { include: { customer: true, program: true } } },

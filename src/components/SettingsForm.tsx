@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import dynamic from 'next/dynamic'
 import { Business, LoyaltyProgram } from '@prisma/client'
+import { type PlanTier } from '@/lib/planFeatures'
+import Link from 'next/link'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faLocationDot, faGift, faMap, faXmark } from '@fortawesome/free-solid-svg-icons'
 import { faApple, faGoogle } from '@fortawesome/free-brands-svg-icons'
@@ -19,6 +21,28 @@ const MapPicker = dynamic(() => import('./MapPicker'), {
 interface Props {
   business: Business | null
   program: LoyaltyProgram | null
+  planTier: PlanTier
+}
+
+function UpgradeBanner({ label }: { label: string }) {
+  return (
+    <div className="border-t border-gray-100 pt-5">
+      <p className="text-sm font-medium text-gray-700 mb-3">{label}</p>
+      <div className="flex items-center gap-3 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+        <span className="text-xl">🔒</span>
+        <div className="flex-1">
+          <p className="text-sm font-medium text-gray-700">Disponible en el plan Pro</p>
+          <p className="text-xs text-gray-400 mt-0.5">Actualiza tu plan para acceder a esta funcionalidad.</p>
+        </div>
+        <Link
+          href="/admin/subscription"
+          className="text-xs font-semibold text-slate-900 underline underline-offset-2 hover:text-slate-600 shrink-0 whitespace-nowrap"
+        >
+          Ver planes →
+        </Link>
+      </div>
+    </div>
+  )
 }
 
 interface ProgramState {
@@ -59,7 +83,7 @@ const COLOR_THEMES = [
   { name: 'Rubí',    bg: '#8b0000', fg: '#ffe4e4', label: '#d08080' },
 ]
 
-export default function SettingsForm({ business, program }: Props) {
+export default function SettingsForm({ business, program, planTier }: Props) {
   const [programData, setProgramData] = useState<ProgramState>({
     id:               program?.id               ?? '',
     name:             program?.name             ?? '',
@@ -265,6 +289,7 @@ export default function SettingsForm({ business, program }: Props) {
               </Field>
 
               {/* ── Mensaje de cumpleaños ── */}
+              {planTier !== 'PRO' ? <UpgradeBanner label="Mensaje de cumpleaños" /> : (
               <div className="border-t border-gray-100 pt-5 space-y-4">
                 <div>
                   <p className="text-sm font-medium text-gray-700">Mensaje de cumpleaños</p>
@@ -327,8 +352,10 @@ export default function SettingsForm({ business, program }: Props) {
                   </p>
                 </div>
               </div>
+              )}
 
               {/* ── Sistema de referidos ── */}
+              {planTier !== 'PRO' ? <UpgradeBanner label="Sistema de referidos" /> : (
               <div className="border-t border-gray-100 pt-5 space-y-4">
                 <div>
                   <p className="text-sm font-medium text-gray-700">Sistema de referidos</p>
@@ -372,6 +399,7 @@ export default function SettingsForm({ business, program }: Props) {
                   </p>
                 )}
               </div>
+              )}
             </div>
           )}
 
@@ -495,6 +523,7 @@ export default function SettingsForm({ business, program }: Props) {
               </Field>
 
               {/* ── Ubicación del negocio (geofencing) ── */}
+              {planTier !== 'PRO' ? <UpgradeBanner label="Ubicación y notificaciones de proximidad" /> : (
               <div className="border-t border-gray-100 pt-5">
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-sm font-medium text-gray-700">Ubicación del negocio</p>
@@ -664,6 +693,7 @@ export default function SettingsForm({ business, program }: Props) {
                   </div>
                 )}
               </div>
+              )}
             </div>
           )}
 
