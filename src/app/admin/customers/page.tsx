@@ -119,7 +119,7 @@ export default async function CustomersPage({
               <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Sellos</th>
               <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell">Premios</th>
               <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Estado</th>
-              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell">Referido</th>
+              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell whitespace-nowrap">QR Ref.</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
