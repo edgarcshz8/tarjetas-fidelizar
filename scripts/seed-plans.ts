@@ -73,6 +73,36 @@ const PLANS: Array<{
       'Soporte prioritario',
     ],
   },
+  {
+    name: 'Empresarial',
+    description: 'Máximo alcance con marketing, reportes y comunicación masiva',
+    price: 60000,
+    intervalDays: 30,
+    interval: 'MONTHLY',
+    features: [
+      'Todo lo del plan Pro',
+      'Reseñas en Google',
+      'Promociones ilimitadas',
+      'Reportes',
+      'Campañas de marketing',
+      '5.000 emails/mes · Push ilimitados',
+    ],
+  },
+  {
+    name: 'Empresarial',
+    description: 'Máximo alcance con marketing, reportes y comunicación masiva',
+    price: 600000,
+    intervalDays: 365,
+    interval: 'ANNUAL',
+    features: [
+      'Todo lo del plan Pro',
+      'Reseñas en Google',
+      'Promociones ilimitadas',
+      'Reportes',
+      'Campañas de marketing',
+      '5.000 emails/mes · Push ilimitados',
+    ],
+  },
 ]
 
 async function main() {
