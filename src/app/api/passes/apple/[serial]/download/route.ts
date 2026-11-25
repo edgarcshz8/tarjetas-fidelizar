@@ -12,18 +12,24 @@ function htmlError(title: string, detail: string, status: number): Response {
   )
 }
 
-// GET /api/passes/apple/{serial}/download → descarga directa del .pkpass
+// GET /api/passes/apple/{serial}/download?token={authToken} → descarga directa del .pkpass
+// El token es requerido para prevenir enumeración de serials.
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { serial: string } }
 ) {
-  const passRecord = await prisma.customerPass.findUnique({
-    where: { serialNumber: params.serial },
+  const token = new URL(req.url).searchParams.get('token')
+  if (!token) {
+    return htmlError('Enlace inválido', 'Usa el enlace que recibiste al registrarte.', 401)
+  }
+
+  const passRecord = await prisma.customerPass.findFirst({
+    where: { serialNumber: params.serial, authToken: token },
     include: { customer: true, program: { include: { business: true } } },
   })
 
   if (!passRecord) {
-    return htmlError('Pase no encontrado', `Serial: ${params.serial}`, 404)
+    return htmlError('Pase no encontrado', 'El enlace de descarga no es válido.', 404)
   }
 
   try {
@@ -43,28 +49,6 @@ export async function GET(
     })
   } catch (err: any) {
     console.error('[GET /api/passes/apple/:serial/download]', err)
-
-    if (err.message?.includes('ENOENT')) {
-      return htmlError(
-        'Certificados no encontrados',
-        'Los archivos de certificado de Apple Wallet no están configurados en el servidor. ' +
-        'Configura APPLE_CERT_B64, APPLE_KEY_B64 y APPLE_WWDR_B64 en las variables de entorno.',
-        503,
-      )
-    }
-
-    if (err.message?.includes('PEM') || err.message?.includes('cert') || err.message?.includes('sign')) {
-      return htmlError(
-        'Error de certificado',
-        `El certificado de Apple Wallet no es válido: ${err.message}`,
-        503,
-      )
-    }
-
-    return htmlError(
-      'Error generando el pase',
-      `Detalle: ${err.message ?? 'error desconocido'}`,
-      500,
-    )
+    return htmlError('Error', 'No se puede generar el pase en este momento.', 500)
   }
 }

@@ -26,17 +26,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'serialNumber requerido' }, { status: 400 })
   }
 
-  const passRecord = await prisma.customerPass.findUnique({
-    where: { serialNumber },
+  const passRecord = await prisma.customerPass.findFirst({
+    where: { serialNumber, program: { businessId: session.user.businessId } },
     include: { customer: true, program: { include: { business: true } } },
   })
 
   if (!passRecord) {
     return NextResponse.json({ error: 'Pase no encontrado' }, { status: 404 })
-  }
-
-  if (passRecord.program.businessId !== session.user.businessId) {
-    return NextResponse.json({ error: 'Este pase no pertenece a tu negocio' }, { status: 403 })
   }
 
   if (!passRecord.rewardReady) {

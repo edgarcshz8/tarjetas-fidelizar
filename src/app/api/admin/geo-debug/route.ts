@@ -13,8 +13,12 @@ export const runtime = 'nodejs'
 
 // GET /api/admin/geo-debug
 // Devuelve el estado actual de geofencing: coordenadas en DB + JSON real de Google Wallet.
-// Acceso: OWNER o ADMIN.
+// Solo disponible fuera de producción (herramienta de debugging).
 export async function GET() {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not Found' }, { status: 404 })
+  }
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   if (session.user.role !== 'OWNER' && session.user.role !== 'ADMIN') {

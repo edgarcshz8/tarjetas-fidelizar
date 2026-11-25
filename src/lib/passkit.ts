@@ -1,4 +1,5 @@
 import { isBirthdayToday, todayInTimezone, renderBirthdayMessage, DEFAULT_BIRTHDAY_TITLE, DEFAULT_BIRTHDAY_MESSAGE } from '@/lib/birthday'
+import { isSafeURL } from '@/lib/url-safety'
 import { PKPass } from 'passkit-generator'
 import fs from 'fs'
 import path from 'path'
@@ -47,7 +48,7 @@ async function loadLogoBuffer(
   fallbackSize: number,
 ): Promise<Buffer> {
   if (stampIconUrl) {
-    if (stampIconUrl.startsWith('http')) {
+    if (stampIconUrl.startsWith('http') && isSafeURL(stampIconUrl)) {
       try {
         const res = await fetch(stampIconUrl, { signal: AbortSignal.timeout(4000) })
         if (res.ok) return Buffer.from(await res.arrayBuffer())

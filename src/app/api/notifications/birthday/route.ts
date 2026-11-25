@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { timingSafeEqual } from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { pushPassUpdate } from '@/lib/apns'
 import { pushBirthdayNotification } from '@/lib/google-wallet'
@@ -18,7 +19,9 @@ export async function POST(req: NextRequest) {
   if (!secret) {
     return NextResponse.json({ error: 'CRON_SECRET no configurado' }, { status: 500 })
   }
-  if (authHeader !== `Bearer ${secret}`) {
+  const a = Buffer.from(authHeader ?? '')
+  const b = Buffer.from(`Bearer ${secret}`)
+  if (a.byteLength !== b.byteLength || !timingSafeEqual(a, b)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 

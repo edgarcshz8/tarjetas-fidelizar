@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { checkActiveSubscriptionWithTier } from '@/lib/subscriptionGuard'
+import { checkRateLimit } from '@/lib/rate-limit'
 import { updateLoyaltyObject, pushGoogleWalletMessage } from '@/lib/google-wallet'
 import { pushPassUpdate } from '@/lib/apns'
 
@@ -24,6 +25,11 @@ export async function POST(req: NextRequest) {
   }
   const planTier = subCheck.tier
 
+  const rl = checkRateLimit(`stamp:${session.user.businessId}`, 60, 60_000)
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Demasiadas solicitudes. Espera un momento.' }, { status: 429 })
+  }
+
   const body = await req.json()
   const { serialNumber, email } = body as { serialNumber?: string; email?: string }
 
@@ -35,7 +41,7 @@ export async function POST(req: NextRequest) {
   const include = { customer: true, program: { include: { business: true } } } as const
 
   const passRecord = serialNumber
-    ? await prisma.customerPass.findFirst({ where: { serialNumber }, include })
+    ? await prisma.customerPass.findFirst({ where: { serialNumber, program: { businessId: session.user.businessId } }, include })
     : await prisma.customerPass.findFirst({
         where: {
           customer: { email: (email as string).toLowerCase().trim() },
@@ -49,10 +55,6 @@ export async function POST(req: NextRequest) {
       ? `No se encontró ningún cliente registrado con el email "${email}" en tu negocio.`
       : 'Pase no encontrado.'
     return NextResponse.json({ error: hint }, { status: 404 })
-  }
-
-  if (passRecord.program.businessId !== session.user.businessId) {
-    return NextResponse.json({ error: 'Este pase no pertenece a tu negocio' }, { status: 403 })
   }
 
   if (passRecord.rewardReady || passRecord.currentStamps >= passRecord.program.stampsRequired) {

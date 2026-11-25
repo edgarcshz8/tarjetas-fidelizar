@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { upsertLoyaltyClass, updateLoyaltyObject, pushGoogleWalletMessage } from '@/lib/google-wallet'
 import { pushPassUpdate } from '@/lib/apns'
 import { checkActiveSubscriptionWithTier } from '@/lib/subscriptionGuard'
+import { isSafeURL } from '@/lib/url-safety'
 
 export const runtime = 'nodejs'
 
@@ -28,10 +29,19 @@ const updateSchema = z.object({
   description: z.string().optional(),
   stampsRequired: z.number().int().min(1).max(100),
   rewardDescription: z.string().min(1).max(200),
-  stampIconUrl: z.string().optional(),
+  stampIconUrl: z.string().optional().refine(
+    v => !v || !v.startsWith('http') || isSafeURL(v),
+    'URL no permitida'
+  ),
   stampEmoji: z.string().optional(),
-  rewardIconUrl: z.string().optional(),
-  logoUrl: z.string().optional(),
+  rewardIconUrl: z.string().optional().refine(
+    v => !v || !v.startsWith('http') || isSafeURL(v),
+    'URL no permitida'
+  ),
+  logoUrl: z.string().optional().refine(
+    v => !v || !v.startsWith('http') || isSafeURL(v),
+    'URL no permitida'
+  ),
   backgroundColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   foregroundColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   labelColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),

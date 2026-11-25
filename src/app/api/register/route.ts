@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { upsertLoyaltyClass, createLoyaltyObject, buildObjectId, getSaveToWalletUrl } from '@/lib/google-wallet'
 import { generateUniquePassCode, generateUniqueReferralCode } from '@/lib/shortcode'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 
@@ -16,6 +17,14 @@ const schema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    ?? req.headers.get('x-real-ip')
+    ?? '127.0.0.1'
+  const rl = checkRateLimit(`reg-cust:${ip}`, 20, 60 * 60 * 1000)
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Demasiadas solicitudes. Intenta más tarde.' }, { status: 429 })
+  }
+
   try {
     const body = await req.json()
     const data = schema.parse(body)
@@ -41,15 +50,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No hay un programa activo configurado' }, { status: 404 })
     }
 
-    // Crear o recuperar cliente
+    // Crear o recuperar cliente. No actualizamos nombre/teléfono en upsert para
+    // evitar que un registro en otro negocio sobrescriba los datos del cliente.
     const birthDate = data.birthDate ? new Date(data.birthDate) : undefined
     const customer = await prisma.customer.upsert({
       where: { email: data.email },
-      update: {
-        name: data.name,
-        phone: data.phone,
-        ...(birthDate ? { birthDate } : {}),
-      },
+      update: {},
       create: {
         name: data.name,
         email: data.email,
@@ -123,7 +129,7 @@ export async function POST(req: NextRequest) {
     // ─── URLs de descarga ───────────────────────────────────────────────────
     const rawAppUrl = process.env.APP_URL || 'http://localhost:3000'
     const appUrl = /^https?:\/\//.test(rawAppUrl) ? rawAppUrl : `https://${rawAppUrl}`
-    const applePassUrl = `${appUrl}/api/passes/apple/${passRecord.serialNumber}/download`
+    const applePassUrl = `${appUrl}/api/passes/apple/${passRecord.serialNumber}/download?token=${passRecord.authToken}`
 
     // Usar googleObjectId guardado en BD; si falta (error de creación), derivar del serialNumber
     let googleWalletUrl = '#'
