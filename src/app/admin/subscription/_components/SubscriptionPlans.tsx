@@ -241,46 +241,63 @@ export default function SubscriptionPlans({ plans, businessId, userEmail, active
       </div>
 
       {/* ── Plan grid ─────────────────────────────────────────────────────── */}
-      <div className={`grid gap-6 mx-auto w-full ${
+      <div className={`grid gap-6 mx-auto w-full mt-4 ${
         visiblePlans.length === 1 ? 'max-w-md' :
         visiblePlans.length === 2 ? 'sm:grid-cols-2 max-w-2xl' :
         'sm:grid-cols-2 lg:grid-cols-3 max-w-5xl'
       }`}>
         {visiblePlans.map((plan) => {
           const isSelected = activePlanId === plan.id
+          const isPro = plan.name === 'Pro'
+
           return (
             <div
               key={plan.id}
-              className={`flex flex-col rounded-2xl border bg-white p-6 shadow-sm transition-shadow ${
-                isSelected
-                  ? 'border-blue-500 ring-2 ring-blue-200 shadow-md'
-                  : 'border-gray-200 hover:shadow-md'
+              className={`flex flex-col rounded-2xl p-6 transition-all relative ${
+                isPro
+                  ? `bg-gradient-to-b from-slate-800 to-slate-900 shadow-2xl ${isSelected ? 'ring-2 ring-amber-400' : 'ring-1 ring-slate-700'}`
+                  : `border bg-white shadow-sm ${isSelected ? 'border-blue-500 ring-2 ring-blue-200 shadow-md' : 'border-gray-200 hover:shadow-md'}`
               }`}
             >
+              {/* Badge "Más popular" */}
+              {isPro && (
+                <div className="absolute -top-4 left-0 right-0 flex justify-center">
+                  <span className="bg-amber-400 text-amber-950 text-xs font-bold px-4 py-1.5 rounded-full shadow-sm">
+                    ⭐ Más popular
+                  </span>
+                </div>
+              )}
+
               <div className="mb-4">
-                <h2 className="text-xl font-bold text-gray-900">{plan.name}</h2>
+                <h2 className={`text-xl font-bold ${isPro ? 'text-white' : 'text-gray-900'}`}>
+                  {plan.name}
+                </h2>
                 {plan.description && (
-                  <p className="mt-1 text-sm text-gray-500">{plan.description}</p>
+                  <p className={`mt-1 text-sm ${isPro ? 'text-slate-400' : 'text-gray-500'}`}>
+                    {plan.description}
+                  </p>
                 )}
               </div>
 
               <div className="mb-6">
-                <span className="text-3xl font-extrabold text-gray-900">{plan.priceFormatted}</span>
-                <span className="ml-1 text-sm text-gray-500">
+                <span className={`text-3xl font-extrabold ${isPro ? 'text-white' : 'text-gray-900'}`}>
+                  {plan.priceFormatted}
+                </span>
+                <span className={`ml-1 text-sm ${isPro ? 'text-slate-400' : 'text-gray-500'}`}>
                   /{plan.interval === 'MONTHLY' ? 'mes' : 'año'}
                 </span>
                 {plan.interval === 'ANNUAL' && (
-                  <p className="mt-1 text-sm text-green-600 font-medium">
+                  <p className={`mt-1 text-sm font-medium ${isPro ? 'text-emerald-400' : 'text-green-600'}`}>
                     ≈ {formatCLPMini(Math.round(plan.price / 12))}/mes
                   </p>
                 )}
               </div>
 
               {plan.features.length > 0 && (
-                <ul className="mb-6 space-y-2 flex-1">
+                <ul className="mb-6 space-y-2.5 flex-1">
                   {plan.features.map((feature, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
-                      <span className="mt-0.5 text-green-500 font-bold shrink-0" aria-hidden>&#10003;</span>
+                    <li key={i} className={`flex items-start gap-2 text-sm ${isPro ? 'text-slate-300' : 'text-gray-600'}`}>
+                      <span className={`mt-0.5 font-bold shrink-0 ${isPro ? 'text-emerald-400' : 'text-green-500'}`} aria-hidden>&#10003;</span>
                       {feature}
                     </li>
                   ))}
@@ -294,8 +311,14 @@ export default function SubscriptionPlans({ plans, businessId, userEmail, active
                   flow.mode === 'mp-loading' ||
                   (activePlanId !== null && activePlanId !== plan.id)
                 }
-                className={`mt-auto w-full rounded-xl px-4 py-3 text-sm font-semibold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                  isSelected ? 'bg-blue-700' : 'bg-blue-600 hover:bg-blue-700'
+                className={`mt-auto w-full rounded-xl px-4 py-3 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                  isPro
+                    ? isSelected
+                      ? 'bg-amber-400 text-amber-950'
+                      : 'bg-white text-slate-900 hover:bg-gray-100'
+                    : isSelected
+                      ? 'bg-blue-700 text-white'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
                 }`}
               >
                 {isSelected
