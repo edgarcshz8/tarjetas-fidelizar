@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Este pase no pertenece a tu negocio' }, { status: 403 })
   }
 
-  if (passRecord.rewardReady) {
+  if (passRecord.rewardReady || passRecord.currentStamps >= passRecord.program.stampsRequired) {
     return NextResponse.json(
       { error: 'El cliente tiene un premio pendiente de canjear antes de sumar más sellos' },
       { status: 409 }
@@ -152,6 +152,22 @@ export async function POST(req: NextRequest) {
           data:  { bonusGranted: true },
         }),
       ])
+
+      // Activar rewardReady si el bono empujó alguna tarjeta al máximo
+      const stampsReq = passRecord.program.stampsRequired
+      if (bonusReferred > 0) {
+        await prisma.customerPass.updateMany({
+          where: { id: referral.referredPassId, rewardReady: false, currentStamps: { gte: stampsReq } },
+          data:  { rewardReady: true },
+        })
+      }
+      if (bonusReferrer > 0) {
+        await prisma.customerPass.updateMany({
+          where: { id: referral.referrerPassId, rewardReady: false, currentStamps: { gte: stampsReq } },
+          data:  { rewardReady: true },
+        })
+      }
+
       pushPassUpdate(referral.referrerPass.serialNumber).catch(err =>
         console.error('[stamp] referral bonus APNS push (referrer):', err)
       )
