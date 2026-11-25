@@ -249,16 +249,6 @@ export default function SettingsForm({ business, program, planTier }: Props) {
                 />
               </Field>
 
-              <Field label="Descripción" hint="Se muestra en el reverso de la tarjeta">
-                <input
-                  type="text"
-                  value={p.description}
-                  onChange={e => setProgramData(d => ({ ...d, description: e.target.value }))}
-                  className="input"
-                  placeholder="Ej: ¡Colecciona sellos y gana un café gratis!"
-                />
-              </Field>
-
               <Field label={`Sellos para el premio — ${p.stampsRequired}`}>
                 <div className="flex items-center gap-4">
                   <input
