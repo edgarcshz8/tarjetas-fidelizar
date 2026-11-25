@@ -139,9 +139,9 @@ export default function SettingsForm({ business, program, planTier }: Props) {
     const hasLat = businessData.latitude !== null && businessData.latitude !== undefined
     const hasLon = businessData.longitude !== null && businessData.longitude !== undefined
     if (hasLat && !hasLon)
-      errs.longitude = 'Ingresa también la longitud para activar el geofencing'
+      errs.longitude = 'Ingresa también la longitud para activar las notificaciones de proximidad'
     if (hasLon && !hasLat)
-      errs.latitude  = 'Ingresa también la latitud para activar el geofencing'
+      errs.latitude  = 'Ingresa también la latitud para activar las notificaciones de proximidad'
     return errs
   }
 
@@ -665,7 +665,7 @@ export default function SettingsForm({ business, program, planTier }: Props) {
                   <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-xl">
                     <p className="text-sm font-medium text-blue-800 mb-1">Clientes con tarjeta existente</p>
                     <p className="text-xs text-blue-600 mb-3">
-                      Las tarjetas ya descargadas no reflejan el geofencing automáticamente. Presiona el botón para enviar una actualización a todos los dispositivos registrados.
+                      Las tarjetas ya descargadas no reflejan los cambios de ubicación automáticamente. Presiona el botón para enviar una actualización a todos los dispositivos registrados.
                     </p>
                     <button
                       type="button"
