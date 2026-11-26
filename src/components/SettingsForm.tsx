@@ -554,7 +554,7 @@ export default function SettingsForm({ business, program, planTier }: Props) {
                   </div>
                 </div>
                 <p className="text-xs text-gray-400 mb-3">
-                  Cuando el cliente esté cerca, la tarjeta aparece automáticamente en su pantalla de bloqueo (Apple Wallet).
+                  Cuando el cliente esté cerca, la tarjeta aparece automáticamente en su pantalla de bloqueo (Apple Wallet y Google Wallet).
                 </p>
 
                 {/* Map picker */}
@@ -600,7 +600,7 @@ export default function SettingsForm({ business, program, planTier }: Props) {
                   </Field>
                 </div>
                 <div className="mt-3">
-                  <Field label="Texto de notificación Apple Wallet" hint="Mensaje que ve el cliente al acercarse (Apple)">
+                  <Field label="Texto de notificación de proximidad" hint="Mensaje que ve el cliente al acercarse en Apple Wallet y Google Wallet">
                     <input
                       type="text"
                       value={businessData.locationName}
