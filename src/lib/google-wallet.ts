@@ -38,7 +38,7 @@ export function buildLoyaltyClassId(programId: string): string {
 }
 
 export async function upsertLoyaltyClass(
-  program: LoyaltyProgram & { business: { name: string; latitude?: number | null; longitude?: number | null; proximityEnabled?: boolean | null } }
+  program: LoyaltyProgram & { business: { name: string; latitude?: number | null; longitude?: number | null; locationName?: string | null; proximityEnabled?: boolean | null } }
 ): Promise<string> {
   const auth = getGoogleAuth()
   const client = await auth.getClient()
@@ -77,6 +77,7 @@ export async function upsertLoyaltyClass(
     loyaltyClass.merchantLocations = [{
       latitude:  program.business.latitude,
       longitude: program.business.longitude,
+      label:     program.business.locationName || `¡Visita ${program.business.name}!`,
     }]
   }
 
